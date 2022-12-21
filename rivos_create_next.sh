@@ -9,7 +9,7 @@ NEXT_BRANCH="dev/tjeznach/next/${ID}"
 # Override base tag with -b <tag>.
 TAG_BASE="v6.1"
 # Override tag name with -t <tag>.
-TAG_NEXT="tjeznach/rivos-next"
+TAG_NEXT="rivos/latest"
 # Push to remote repo if -p flag added.
 GIT_PUSH=0
 
@@ -27,7 +27,7 @@ COMPONENTS=( \
     'origin/dev/bend/feature/dce' \
 )
 
-while getopts "b:pk" arg; do
+while getopts "b:t:pk" arg; do
   case $arg in
   b ) TAG_BASE=$OPTARG ;;
   t ) TAG_NEXT=$OPTARG ;;
