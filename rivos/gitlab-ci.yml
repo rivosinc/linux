@@ -9,7 +9,9 @@ variables:
 # Override some variable from 'prepare-version' included from gitlab-ci-packaging-helper
 prepare-version:
   after_script:
+    - rivos_version="$(git describe --always --tags --abbrev=0 --exact-match --match 'rivos/*' 2>/dev/null)"
     - upstream_version="$(git describe --always --tags --abbrev=0 --match='v[0-9].*' | sed -e 's@-rc@~rc@')"
+    - echo "GIT_TAG_RIVOS=${rivos_version}" >> gitvars.env
     - sed -i -e "s@GIT_TAG=.\+@GIT_TAG=${upstream_version:1}@" gitvars.env
     # Debugging helper
     - cat gitvars.env
@@ -48,6 +50,13 @@ package-deb:
     # clean up pre-built binaries from the rivos-sdk
     - rm -rf "${INSTALL_PATH}"
     - tar -C/ -xzf linux.tar.gz
+    # tag 'rivos/next' generates rivos-sdk-linux package in main section.
+    - |
+      if [[ "${GIT_TAG_RIVOS}" == "rivos/next" ]] && \
+         [[ "$MODIFIED_BASE_IMAGE" != "true" ]] && \
+         [[ ( "$CI_PIPELINE_SOURCE" != "pipeline" ) || ( "$TEST_DOWNSTREAM" == "true" ) ]] ; then
+        section="main"
+      fi
 
 # Rebuild the rivos-sdk image if this is the branch the SDK is using.
 # Currently the 'latest' tag from the 'rivos/main' branch.
