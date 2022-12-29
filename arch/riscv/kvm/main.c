@@ -105,14 +105,14 @@ int kvm_arch_init(void *opaque)
 		return -ENODEV;
 	}
 
-	if (sbi_probe_extension(SBI_EXT_RFENCE) <= 0) {
-		kvm_info("require SBI RFENCE extension\n");
-		return -ENODEV;
-	}
-
 	rc = kvm_riscv_nacl_init();
 	if (rc && rc != -ENODEV)
 		return rc;
+
+	if (kvm_riscv_nacl_available()) {
+		kvm_info("using SBI nested acceleration\n");
+		kvm_riscv_cove_init();
+	}
 
 	kvm_riscv_gstage_mode_detect();
 
@@ -124,10 +124,16 @@ int kvm_arch_init(void *opaque)
 		return rc;
 	}
 
-	kvm_info("hypervisor extension available\n");
+	/* TVM don't need RFENCE extension as hardware imsic support is mandatory for TVMs
+	 * TODO: This check should happen later if HW_ACCEL mode is not set as RFENCE
+	 * should only be mandatory in that case.
+	 */
+	if (!kvm_riscv_cove_enabled() && sbi_probe_extension(SBI_EXT_RFENCE) <= 0) {
+		kvm_info("require SBI RFENCE extension\n");
+		return -ENODEV;
+	}
 
-	if (kvm_riscv_nacl_available())
-		kvm_info("using SBI nested acceleration\n");
+	kvm_info("hypervisor extension available\n");
 
 	switch (kvm_riscv_gstage_mode()) {
 	case HGATP_MODE_SV32X4:
