@@ -153,8 +153,77 @@ void kvm_riscv_cove_vcpu_put(struct kvm_vcpu *vcpu)
 
 int kvm_riscv_cove_gstage_map(struct kvm_vcpu *vcpu, gpa_t gpa, unsigned long hva)
 {
-	/* TODO */
+	struct kvm_riscv_cove_page *tpage;
+	struct mm_struct *mm = current->mm;
+	struct kvm *kvm = vcpu->kvm;
+	//TODO: Do need a FOLL_HWPOISION like pkvm ?
+	unsigned int flags = FOLL_LONGTERM | FOLL_WRITE;
+	struct page *page;
+	int rc;
+	struct kvm_cove_tvm_context *tvmc = kvm->arch.tvmc;
+
+	tpage = kmalloc(sizeof(*tpage), GFP_KERNEL_ACCOUNT);
+	if (!tpage)
+		return -ENOMEM;
+
+	mmap_read_lock(mm);
+	rc = pin_user_pages(hva, 1, flags, &page, NULL);
+	mmap_read_unlock(mm);
+
+	//TODO: Do we need to handle -EHWPOISON here as well?
+	if (rc != 1) {
+		rc = -EFAULT;
+		goto free_tpage;
+	} else if (!PageSwapBacked(page)) {
+		rc = -EIO;
+		goto free_tpage;
+	}
+
+	rc = cove_convert_pages(page_to_phys(page), 1, false);
+	if (rc)
+		goto unpin_page;
+
+	mutex_lock(&kvm->lock);
+	rc = sbi_covh_tsm_initiate_fence();
+	if (rc) {
+		mutex_unlock(&kvm->lock);
+		kvm_err("%s: initiate fence for TSM failed %d pcpu %d vcpu %d\n",
+			__func__, rc, smp_processor_id(), vcpu->vcpu_idx);
+		goto unpin_page;
+	}
+	/* Initiate local fence on each online hart */
+	on_each_cpu(kvm_cove_local_fence, NULL, 1);
+	mutex_unlock(&kvm->lock);
+
+	rc = sbi_covh_add_zero_pages(tvmc->tvm_guest_id, page_to_phys(page),
+				     SBI_COVE_PAGE_4K, 1, gpa);
+	if (rc) {
+		pr_err("%s: Adding zero pages failed %d\n", __func__, rc);
+		goto zero_page_failed;
+	}
+	tpage->page = page;
+	tpage->npages = 1;
+	tpage->is_mapped = true;
+	tpage->gpa = gpa;
+	tpage->hva = hva;
+	INIT_LIST_HEAD(&tpage->link);
+
+	spin_lock(&kvm->mmu_lock);
+	list_add(&tpage->link, &kvm->arch.tvmc->zero_pages);
+	spin_unlock(&kvm->mmu_lock);
+
 	return 0;
+
+zero_page_failed:
+	//TODO: Do we need to reclaim the page now or VM gets destroyed ?
+
+unpin_page:
+	unpin_user_pages(&page, 1);
+
+free_tpage:
+	kfree(tpage);
+
+	return rc;
 }
 
 void kvm_riscv_cove_vcpu_switchto(struct kvm_vcpu *vcpu, struct kvm_cpu_trap *trap)
@@ -397,6 +466,7 @@ void kvm_riscv_cove_vm_destroy(struct kvm *kvm)
 	/* TODOD:Free list of pages allocated during TVM operation */
 	cove_delete_page_list(kvm, &tvmc->reclaim_pending_pages, false);
 	cove_delete_page_list(kvm, &tvmc->measured_pages, false);
+	cove_delete_page_list(kvm, &tvmc->zero_pages, true);
 
 	/* Reclaim and Free the pages for tvm state management */
 	rc = sbi_covh_tsm_reclaim_pages(page_to_phys(tvmc->tvm_state.page), tvmc->tvm_state.npages);
