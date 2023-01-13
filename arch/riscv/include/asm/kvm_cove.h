@@ -31,6 +31,8 @@
 
 #define get_order_num_pages(n) (get_order(n << PAGE_SHIFT))
 
+#define get_gpr_index(goffset) \
+	((goffset - KVM_ARCH_GUEST_ZERO) / (__riscv_xlen / 8))
 /* This is part of UABI. DO NOT CHANGE IT */
 struct kvm_riscv_cove_measure_region {
 	/* Address of the user space where the VM code/data resides */
@@ -153,6 +155,10 @@ int kvm_riscv_cove_gstage_map(struct kvm_vcpu *vcpu, gpa_t gpa, unsigned long hv
 /* Fence related function */
 int kvm_riscv_cove_tvm_fence(struct kvm_vcpu *vcpu);
 
+/* Page share/unshare functions */
+int kvm_riscv_cove_share_page(struct kvm_vcpu *vcpu, gpa_t gpa);
+int kvm_riscv_cove_unshare_page(struct kvm_vcpu *vcpu, gpa_t gpa);
+
 /* AIA related CoVE functions */
 int kvm_riscv_cove_aia_init(struct kvm *kvm);
 int kvm_riscv_cove_vcpu_inject_interrupt(struct kvm_vcpu *vcpu, unsigned long iid);
@@ -187,6 +193,9 @@ static inline int kvm_riscv_cove_vm_measure_pages(struct kvm *kvm,
 }
 static inline int kvm_riscv_cove_gstage_map(struct kvm_vcpu *vcpu,
 					    gpa_t gpa, unsigned long hva) {return -1; }
+static inline int kvm_riscv_cove_share_page(struct kvm_vcpu *vcpu, gpa_t gpa) { return -1; }
+static inline int kvm_riscv_cove_unshare_page(struct kvm_vcpu *vcpu, gpa_t gpa) { return -1; }
+
 /* TVM interrupt managenet via AIA functions */
 static inline int kvm_riscv_cove_aia_init(struct kvm *kvm) { return -1; }
 static inline int kvm_riscv_cove_vcpu_inject_interrupt(struct kvm_vcpu *vcpu,

@@ -60,6 +60,11 @@ int sbi_covh_create_tvm_vcpu(unsigned long tvmid, unsigned long tvm_vcpuid,
 
 int sbi_covh_run_tvm_vcpu(unsigned long tvmid, unsigned long tvm_vcpuid, bool *is_blocked);
 
+int sbi_covh_add_shared_pages(unsigned long tvmid, unsigned long page_addr_phys,
+			      enum sbi_cove_page_type ptype,
+			      unsigned long npages,
+			      unsigned long tvm_base_page_addr);
+
 /* Functions related to CoVE Interrupt Management(COVI) Extension */
 int sbi_covi_tvm_aia_init(unsigned long tvm_gid, struct sbi_cove_tvm_aia_params *tvm_aia_params);
 int sbi_covi_set_vcpu_imsic_addr(unsigned long tvm_gid, unsigned long vcpu_id,
