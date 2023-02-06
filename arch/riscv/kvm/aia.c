@@ -549,11 +549,6 @@ void kvm_riscv_aia_enable(void)
 
 void kvm_riscv_aia_disable(void)
 {
-	int i;
-	unsigned long flags;
-	struct kvm_vcpu *vcpu;
-	struct aia_hgei_control *hgctrl = this_cpu_ptr(&aia_hgei);
-
 	if (!kvm_riscv_aia_available())
 		return;
 
@@ -562,36 +557,6 @@ void kvm_riscv_aia_disable(void)
 	disable_percpu_irq(hgei_parent_irq);
 
 	aia_set_hvictl(false);
-
-	raw_spin_lock_irqsave(&hgctrl->lock, flags);
-
-	for (i = 0; i <= kvm_riscv_aia_nr_hgei; i++) {
-		vcpu = hgctrl->owners[i];
-		if (!vcpu)
-			continue;
-
-		/*
-		 * We release hgctrl->lock before notifying IMSIC
-		 * so that we don't have lock ordering issues.
-		 */
-		raw_spin_unlock_irqrestore(&hgctrl->lock, flags);
-
-		/* Notify IMSIC */
-		kvm_riscv_vcpu_aia_imsic_release(vcpu);
-
-		/*
-		 * Wakeup VCPU if it was blocked so that it can
-		 * run on other HARTs
-		 */
-		if (csr_read(CSR_HGEIE) & BIT(i)) {
-			csr_clear(CSR_HGEIE, BIT(i));
-			kvm_vcpu_kick(vcpu);
-		}
-
-		raw_spin_lock_irqsave(&hgctrl->lock, flags);
-	}
-
-	raw_spin_unlock_irqrestore(&hgctrl->lock, flags);
 }
 
 int kvm_riscv_aia_init(void)

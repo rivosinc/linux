@@ -683,6 +683,16 @@ void kvm_riscv_vcpu_aia_imsic_release(struct kvm_vcpu *vcpu)
 	if (old_vsfile_cpu < 0)
 		return;
 
+	//TODO: Do we need to wakup vcpu with HGEIE disabled ?
+	/*
+	 * Wakeup VCPU if it was blocked so that it can
+	 * run on other HARTs
+	 */
+	if (csr_read(CSR_HGEIE) & BIT(old_vsfile_hgei)) {
+		csr_clear(CSR_HGEIE, BIT(old_vsfile_hgei));
+		kvm_vcpu_kick(vcpu);
+	}
+
 	/*
 	 * At this point, all interrupt producers are still using the
 	 * the old IMSIC VS-file so we first re-direct all interrupt

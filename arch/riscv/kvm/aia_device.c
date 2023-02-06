@@ -565,6 +565,9 @@ void kvm_riscv_vcpu_aia_deinit(struct kvm_vcpu *vcpu)
 	if (!kvm_riscv_aia_initialized(vcpu->kvm))
 		return;
 
+	/* Free up the existing vsfile context */
+	kvm_riscv_vcpu_aia_imsic_release(vcpu);
+
 	/* Cleanup IMSIC context */
 	kvm_riscv_vcpu_aia_imsic_cleanup(vcpu);
 }
