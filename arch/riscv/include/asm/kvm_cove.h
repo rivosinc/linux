@@ -86,6 +86,9 @@ struct kvm_cove_tvm_vcpu_context {
 
 	/* Per VCPU imsic state */
 	struct imsic_cove_state imsic;
+
+	/* If vcpu is blocked by TSM */
+	bool is_blocked;
 };
 
 struct kvm_cove_tvm_context {

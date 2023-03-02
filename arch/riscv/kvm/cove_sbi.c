@@ -399,13 +399,15 @@ int sbi_covh_create_tvm_vcpu(unsigned long tvmid, unsigned long vcpuid,
 	return 0;
 }
 
-int sbi_covh_run_tvm_vcpu(unsigned long tvmid, unsigned long vcpuid)
+int sbi_covh_run_tvm_vcpu(unsigned long tvmid, unsigned long vcpuid, bool *is_blocked)
 {
 	struct sbiret ret;
 
 	ret = sbi_ecall(SBI_EXT_COVH, SBI_EXT_COVH_TVM_VCPU_RUN, tvmid, vcpuid, 0, 0, 0, 0);
 	if (ret.error)
 		return sbi_err_map_linux_errno(ret.error);
+
+	*is_blocked = !!ret.value;
 
 	return 0;
 }
