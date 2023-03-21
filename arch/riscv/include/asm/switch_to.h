@@ -13,6 +13,7 @@
 #include <asm/processor.h>
 #include <asm/ptrace.h>
 #include <asm/csr.h>
+#include <asm/qos.h>
 
 #ifdef CONFIG_FPU
 extern void __fstate_save(struct task_struct *save_to);
@@ -82,6 +83,7 @@ do {							\
 	if (has_vector())					\
 		__switch_to_vector(__prev, __next);	\
 	((last) = __switch_to(__prev, __next));		\
+	qos_sched_in(__next);				\
 } while (0)
 
 #endif /* _ASM_RISCV_SWITCH_TO_H */

@@ -84,6 +84,9 @@ struct thread_struct {
 	unsigned long vstate_ctrl;
 	struct __riscv_v_ext_state vstate;
 	unsigned long align_ctl;
+#ifdef CONFIG_RISCV_ISA_SSQOSID
+	u32 sqoscfg;
+#endif
 };
 
 /* Whitelist the fstate from the task_struct for hardened usercopy */
