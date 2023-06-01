@@ -1534,6 +1534,39 @@ int cppc_set_epp_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls, bool enable)
 }
 EXPORT_SYMBOL_GPL(cppc_set_epp_perf);
 
+static int cppc_auto_sel_supported_cpu(int cpunum)
+{
+	struct cpc_desc *cpc_desc = per_cpu(cpc_desc_ptr, cpunum);
+	struct cpc_register_resource *auto_sel_reg;
+
+	if (!cpc_desc) {
+		pr_debug("No CPC descriptor for CPU:%d\n", cpunum);
+		return -ENODEV;
+	}
+
+	auto_sel_reg = &cpc_desc->cpc_regs[AUTO_SEL_ENABLE];
+
+	if (!CPC_SUPPORTED(auto_sel_reg)) {
+		pr_warn_once("Autonomous mode is not unsupported!\n");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+bool cppc_auto_sel_supported(void)
+{
+	int cpu;
+
+	for_each_present_cpu(cpu) {
+		if (cppc_auto_sel_supported_cpu(cpu))
+			return false;
+	}
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(cppc_auto_sel_supported);
+
 /**
  * cppc_get_auto_sel_caps - Read autonomous selection register.
  * @cpunum : CPU from which to read register.

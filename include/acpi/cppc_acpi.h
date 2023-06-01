@@ -161,6 +161,7 @@ extern int cppc_get_epp_perf(int cpunum, u64 *epp_perf);
 extern int cppc_set_epp_perf(int cpu, struct cppc_perf_ctrls *perf_ctrls, bool enable);
 extern int cppc_get_auto_sel_caps(int cpunum, struct cppc_perf_caps *perf_caps);
 extern int cppc_set_auto_sel(int cpu, bool enable);
+extern bool cppc_auto_sel_supported(void);
 extern int amd_get_highest_perf(unsigned int cpu, u32 *highest_perf);
 extern int amd_get_boost_ratio_numerator(unsigned int cpu, u64 *numerator);
 extern int amd_detect_prefcore(bool *detected);
@@ -248,6 +249,10 @@ static inline int amd_get_boost_ratio_numerator(unsigned int cpu, u64 *numerator
 static inline int amd_detect_prefcore(bool *detected)
 {
 	return -ENODEV;
+}
+static inline bool cppc_auto_sel_supported(void)
+{
+	return -ENOTSUPP;
 }
 #endif /* !CONFIG_ACPI_CPPC_LIB */
 
