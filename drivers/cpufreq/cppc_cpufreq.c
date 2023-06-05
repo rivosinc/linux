@@ -54,6 +54,10 @@ static int cppc_mode = CPPC_MODE_PASSIVE;
 
 static struct cpufreq_driver cppc_cpufreq_driver;
 
+typedef int (*cppc_mode_transition_fn)(int);
+
+static int cppc_cpufreq_validate_mode(unsigned int mode);
+
 #ifdef CONFIG_ACPI_CPPC_CPUFREQ_FIE
 static enum {
 	FIE_UNSET = -1,
@@ -294,6 +298,90 @@ static inline int get_mode_idx_from_str(const char *str, size_t size)
 	}
 	return -EINVAL;
 }
+
+static DEFINE_MUTEX(cppc_mode_driver_lock);
+
+static int cppc_cpufreq_change_mode(int mode)
+{
+	int cpu = 0;
+
+	cppc_mode = mode;
+
+	for_each_present_cpu(cpu)
+		cppc_set_auto_sel(cpu, (cppc_mode == CPPC_MODE_PASSIVE) ? 0 : 1);
+
+	return 0;
+}
+
+static cppc_mode_transition_fn mode_state_machine[CPPC_MODE_MAX][CPPC_MODE_MAX] = {
+	[CPPC_MODE_PASSIVE] = {
+		[CPPC_MODE_PASSIVE] = NULL,
+		[CPPC_MODE_GUIDED] = cppc_cpufreq_change_mode,
+	},
+	[CPPC_MODE_GUIDED] = {
+		[CPPC_MODE_PASSIVE] = cppc_cpufreq_change_mode,
+		[CPPC_MODE_GUIDED] = NULL,
+	},
+};
+
+static ssize_t cppc_mode_show_mode(char *buf)
+{
+	return sysfs_emit(buf, "%s\n", cppc_mode_string[cppc_mode]);
+}
+
+static int cppc_mode_update_mode(const char *buf, size_t size)
+{
+	int ret, mode_idx;
+
+	mode_idx = get_mode_idx_from_str(buf, size);
+	if (mode_idx < 0 || mode_idx >= CPPC_MODE_MAX)
+		return -EINVAL;
+
+	ret = cppc_cpufreq_validate_mode(mode_idx);
+	if (ret)
+		return ret;
+
+	if (mode_state_machine[cppc_mode][mode_idx])
+		return mode_state_machine[cppc_mode][mode_idx](mode_idx);
+
+	return 0;
+}
+
+static ssize_t show_status(struct kobject *kobj,
+			   struct kobj_attribute *attr, char *buf)
+{
+	ssize_t ret;
+
+	mutex_lock(&cppc_mode_driver_lock);
+	ret = cppc_mode_show_mode(buf);
+	mutex_unlock(&cppc_mode_driver_lock);
+
+	return ret;
+}
+
+static ssize_t store_status(struct kobject *a, struct kobj_attribute *b,
+			    const char *buf, size_t count)
+{
+	char *p = memchr(buf, '\n', count);
+	int ret;
+
+	mutex_lock(&cppc_mode_driver_lock);
+	ret = cppc_mode_update_mode(buf, p ? p - buf : count);
+	mutex_unlock(&cppc_mode_driver_lock);
+
+	return ret < 0 ? ret : count;
+}
+define_one_global_rw(status);
+
+static struct attribute *cppc_mode_global_attr[] = {
+	&status.attr,
+	NULL
+};
+
+static const struct attribute_group cppc_mode_global_attr_group = {
+	.name = "cppc_cpufreq",
+	.attrs = cppc_mode_global_attr,
+};
 
 static int cppc_cpufreq_update_perf(struct cpufreq_policy *policy,
 				    struct cppc_perf_ctrls *ctrls, u32 min,
