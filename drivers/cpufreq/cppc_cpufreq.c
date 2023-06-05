@@ -27,12 +27,30 @@
 #include <acpi/cppc_acpi.h>
 
 /*
+ * enum cppc_mode - CPPC mode (normal or autonomous guided)
+ */
+enum cppc_mode {
+	CPPC_MODE_PASSIVE,
+	CPPC_MODE_GUIDED,
+	CPPC_MODE_MAX,
+};
+
+static const char * const cppc_mode_string[] = {
+	[CPPC_MODE_PASSIVE]	= "normal",
+	[CPPC_MODE_GUIDED]	= "guided",
+	NULL,
+};
+
+/*
  * This list contains information parsed from per CPU ACPI _CPC and _PSD
  * structures: e.g. the highest and lowest supported performance, capabilities,
  * desired performance, level requested etc. Depending on the share_type, not
  * all CPUs will have an entry in the list.
  */
 static LIST_HEAD(cpu_data_list);
+
+static bool autonomous_supported;
+static int cppc_mode = CPPC_MODE_PASSIVE;
 
 static struct cpufreq_driver cppc_cpufreq_driver;
 
@@ -266,6 +284,34 @@ static inline void cppc_freq_invariance_exit(void)
 }
 #endif /* CONFIG_ACPI_CPPC_CPUFREQ_FIE */
 
+static inline int get_mode_idx_from_str(const char *str, size_t size)
+{
+	int i;
+
+	for (i = 0; i < CPPC_MODE_MAX; i++) {
+		if (!strncmp(str, cppc_mode_string[i], size))
+			return i;
+	}
+	return -EINVAL;
+}
+
+static int cppc_cpufreq_update_perf(struct cpufreq_policy *policy,
+				    struct cppc_perf_ctrls *ctrls, u32 min,
+				    u32 des, u32 max)
+{
+	if ((cppc_mode == CPPC_MODE_GUIDED) &&
+	    (policy->governor->flags & CPUFREQ_GOV_DYNAMIC_SWITCHING)) {
+		min = des;
+		des = 0;
+	}
+
+	ctrls->min_perf = min;
+	ctrls->max_perf = max;
+	ctrls->desired_perf = des;
+
+	return cppc_set_perf(policy->cpu, ctrls);
+}
+
 static int cppc_cpufreq_set_target(struct cpufreq_policy *policy,
 				   unsigned int target_freq,
 				   unsigned int relation)
@@ -281,7 +327,8 @@ static int cppc_cpufreq_set_target(struct cpufreq_policy *policy,
 	freqs.new = target_freq;
 
 	cpufreq_freq_transition_begin(policy, &freqs);
-	ret = cppc_set_perf(cpu, &cpu_data->perf_ctrls);
+	ret = cppc_cpufreq_update_perf(policy, &cpu_data->perf_ctrls, 0,
+				       cpu_data->perf_ctrls.desired_perf, 0);
 	cpufreq_freq_transition_end(policy, &freqs, ret != 0);
 
 	if (ret)
@@ -300,8 +347,8 @@ static unsigned int cppc_cpufreq_fast_switch(struct cpufreq_policy *policy,
 	int ret;
 
 	desired_perf = cppc_khz_to_perf(&cpu_data->perf_caps, target_freq);
-	cpu_data->perf_ctrls.desired_perf = desired_perf;
-	ret = cppc_set_perf(cpu, &cpu_data->perf_ctrls);
+	ret = cppc_cpufreq_update_perf(policy, &cpu_data->perf_ctrls, 0,
+				       desired_perf, 0);
 
 	if (ret) {
 		pr_debug("Failed to set target on CPU:%d. ret:%d\n",
@@ -657,7 +704,15 @@ static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	policy->cur = cppc_perf_to_khz(caps, caps->highest_perf);
 	cpu_data->perf_ctrls.desired_perf =  caps->highest_perf;
 
-	ret = cppc_set_perf(cpu, &cpu_data->perf_ctrls);
+	if (cppc_mode == CPPC_MODE_GUIDED) {
+		ret = cppc_set_auto_sel(cpu, 1);
+
+		if (ret)
+			pr_warn("failed to set auto_sel, ret: %d\n", ret);
+	}
+
+	ret = cppc_cpufreq_update_perf(policy, &cpu_data->perf_ctrls, 0,
+				       caps->highest_perf, 0);
 	if (ret) {
 		pr_debug("Err setting perf value:%d on CPU:%d. ret:%d\n",
 			 caps->highest_perf, cpu, ret);
@@ -681,12 +736,18 @@ static void cppc_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 
 	cppc_cpufreq_cpu_fie_exit(policy);
 
-	cpu_data->perf_ctrls.desired_perf = caps->lowest_perf;
-
-	ret = cppc_set_perf(cpu, &cpu_data->perf_ctrls);
+	ret = cppc_cpufreq_update_perf(policy, &cpu_data->perf_ctrls, 0,
+				       caps->lowest_perf, 0);
 	if (ret)
 		pr_debug("Err setting perf value:%d on CPU:%d. ret:%d\n",
 			 caps->lowest_perf, cpu, ret);
+
+	if (cppc_mode == CPPC_MODE_GUIDED) {
+		ret = cppc_set_auto_sel(cpu, 0);
+
+		if (ret)
+			pr_warn("failed to set auto_sel, ret: %d\n", ret);
+	}
 
 	cppc_cpufreq_put_cpu_data(policy);
 }
@@ -828,12 +889,31 @@ static struct cpufreq_driver cppc_cpufreq_driver = {
 	.name = "cppc_cpufreq",
 };
 
+static int cppc_cpufreq_validate_mode(unsigned int mode)
+{
+	if (mode >= CPPC_MODE_MAX)
+		return -EINVAL;
+
+	if (mode == CPPC_MODE_GUIDED && !autonomous_supported) {
+		pr_warn("Autonomous mode requested but unsupported !\n");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static int __init cppc_cpufreq_init(void)
 {
 	int ret;
 
 	if (!acpi_cpc_valid())
 		return -ENODEV;
+
+	autonomous_supported = cppc_auto_sel_supported();
+
+	/* Validate initial cppc mode */
+	if (cppc_cpufreq_validate_mode(cppc_mode))
+		cppc_mode = CPPC_MODE_PASSIVE;
 
 	cppc_freq_invariance_init();
 	populate_efficiency_class();
@@ -844,6 +924,25 @@ static int __init cppc_cpufreq_init(void)
 
 	return ret;
 }
+
+static int __init cppc_mode_param(char *str)
+{
+	size_t size;
+	int mode_idx;
+
+	if (!str)
+		return -EINVAL;
+
+	size = strlen(str);
+	mode_idx = get_mode_idx_from_str(str, size);
+
+	if (mode_idx < CPPC_MODE_PASSIVE && mode_idx >= CPPC_MODE_MAX)
+		return -EINVAL;
+
+	cppc_mode = mode_idx;
+	return 0;
+}
+early_param("cppc_mode", cppc_mode_param);
 
 static inline void free_cpu_data(void)
 {
