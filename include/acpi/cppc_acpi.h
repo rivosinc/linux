@@ -136,6 +136,7 @@ struct cppc_cpudata {
 	struct cppc_perf_fb_ctrs perf_fb_ctrs;
 	unsigned int shared_type;
 	cpumask_var_t shared_cpu_map;
+	unsigned int cpu;
 };
 
 #ifdef CONFIG_ACPI_CPPC_LIB
