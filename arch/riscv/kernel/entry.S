@@ -183,6 +183,7 @@ SYM_CODE_START_NOALIGN(ret_from_exception)
 #else
 	sret
 #endif
+.Lret_from_exception_end:
 SYM_CODE_END(ret_from_exception)
 
 #ifdef CONFIG_VMAP_STACK
