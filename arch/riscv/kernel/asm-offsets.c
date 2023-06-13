@@ -6,16 +6,21 @@
 
 #define GENERATING_ASM_OFFSETS
 
+#include <linux/bitfield.h>
 #include <linux/kbuild.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/suspend.h>
+#include <linux/riscv_sse.h>
 #include <asm/kvm_host.h>
 #include <asm/thread_info.h>
 #include <asm/ptrace.h>
 #include <asm/cpu_ops_sbi.h>
 #include <asm/stacktrace.h>
+#include <asm/sbi.h>
+#include <asm/sse.h>
 #include <asm/suspend.h>
+#include <asm/stacktrace.h>
 
 void asm_offsets(void);
 
@@ -488,4 +493,15 @@ void asm_offsets(void)
 	DEFINE(STACKFRAME_SIZE_ON_STACK, ALIGN(sizeof(struct stackframe), STACK_ALIGN));
 	OFFSET(STACKFRAME_FP, stackframe, fp);
 	OFFSET(STACKFRAME_RA, stackframe, ra);
+
+#ifdef CONFIG_RISCV_SSE
+	OFFSET(SSE_REG_EVT_STACK, sse_registered_event, stack);
+	OFFSET(SSE_REG_EVT_SHADOW_STACK, sse_registered_event, shadow_stack);
+	OFFSET(SSE_REG_EVT_CPU, sse_registered_event, cpu);
+
+	DEFINE(SBI_EXT_SSE, SBI_EXT_SSE);
+	DEFINE(SBI_SSE_EVENT_COMPLETE, SBI_SSE_EVENT_COMPLETE);
+	DEFINE(SR_SPP_SHIFT, __bf_shf(SR_SPP));
+	DEFINE(SBI_SSE_ATTR_INTERRUPTED_FLAGS_PP, SBI_SSE_ATTR_INTERRUPTED_FLAGS_PP);
+#endif
 }
