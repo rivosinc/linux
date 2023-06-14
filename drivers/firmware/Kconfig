@@ -235,6 +235,13 @@ config RISCV_SSE
 	  notifications to the supervisor mode software. When enable, this
 	  option provides support to register callbacks on specific SSE events.
 
+config RISCV_SSE_TEST
+	bool "Enable SSE test at boot time"
+	depends on RISCV_SSE
+	default n
+	help
+	  Select if you want to enable SSE extension testing at boot time.
+
 config SYSFB
 	bool
 	select BOOT_VESA_SUPPORT
