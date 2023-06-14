@@ -609,6 +609,8 @@ static int __init sse_init(void)
 	sse_hp_state = ret;
 	sse_available = true;
 
+	sse_test_init();
+
 	return 0;
 
 remove_reboot:
@@ -617,4 +619,4 @@ remove_reboot:
 	return ret;
 
 }
-device_initcall(sse_init);
+subsys_initcall(sse_init);

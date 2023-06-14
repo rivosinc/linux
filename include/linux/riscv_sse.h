@@ -86,4 +86,10 @@ static inline void sse_event_disable(struct sse_event *sse_evt) {}
 
 #endif
 
+#ifdef CONFIG_RISCV_SSE_TEST
+void __init sse_test_init(void);
+#else
+static inline void __init sse_test_init(void) {}
+#endif
+
 #endif /* __LINUX_RISCV_SSE_H */
