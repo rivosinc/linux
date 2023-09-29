@@ -62,6 +62,8 @@
 #define RISCV_ISA_EXT_ZICOND		44
 #define RISCV_ISA_EXT_SSCSRIND		45
 #define RISCV_ISA_EXT_SMCSRIND		46
+#define RISCV_ISA_EXT_SSCCFG            47
+#define RISCV_ISA_EXT_SMCDELEG          48
 
 #define RISCV_ISA_EXT_MAX		64
 

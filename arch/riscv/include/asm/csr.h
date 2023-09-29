@@ -312,12 +312,9 @@
 #define CSR_SIE			0x104
 #define CSR_STVEC		0x105
 #define CSR_SCOUNTEREN		0x106
-<<<<<<< HEAD
 #define CSR_SENVCFG		0x10a
 #define CSR_SSTATEEN0		0x10c
-=======
 #define CSR_SCOUNTINHIBIT	0x120
->>>>>>> 538b2e9 (RISC-V: Add Sscfg extension definition)
 #define CSR_SSCRATCH		0x140
 #define CSR_SEPC		0x141
 #define CSR_SCAUSE		0x142
