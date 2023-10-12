@@ -304,6 +304,7 @@ class JsonEvent:
     self.desc = fixdesc(jd.get('BriefDescription'))
     self.long_desc = fixdesc(jd.get('PublicDescription'))
     precise = jd.get('PEBS')
+    counterid_mask = jd.get('CounterIDMask')
     msr = lookup_msr(jd.get('MSRIndex'))
     msrval = jd.get('MSRValue')
     extra_desc = ''
@@ -353,6 +354,8 @@ class JsonEvent:
       event += f',{filter}'
     if msr:
       event += f',{msr}{msrval}'
+    if counterid_mask:
+      event += f',counterid_mask={counterid_mask}'
     if self.desc and extra_desc:
       self.desc += extra_desc
     if self.long_desc and extra_desc:
