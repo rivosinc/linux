@@ -475,6 +475,19 @@ static bool pmu_sbi_is_fw_event(struct perf_event *event)
 		return false;
 }
 
+static int rvpmu_deleg_event_map(struct perf_event *event, u64 *econfig)
+{
+	u32 type = event->attr.type;
+	u64 config = event->attr.config;
+
+	if (type != PERF_TYPE_RAW)
+		return -ENOENT;
+
+	*econfig = config & RISCV_PMU_DELEG_RAW_EVENT_MASK;
+
+	return *econfig;
+}
+
 static int rvpmu_sbi_event_map(struct perf_event *event, u64 *econfig)
 {
 	u32 type = event->attr.type;
@@ -499,7 +512,7 @@ static int rvpmu_sbi_event_map(struct perf_event *event, u64 *econfig)
 		 * raw event and firmware events.
 		 */
 		bSoftware = config >> 63;
-		raw_config_val = config & RISCV_PMU_RAW_EVENT_MASK;
+		raw_config_val = config & RISCV_PMU_SBI_RAW_EVENT_MASK;
 		if (bSoftware) {
 			ret = (raw_config_val & 0xFFFF) |
 				(SBI_PMU_EVENT_TYPE_FW << 16);
@@ -1069,11 +1082,10 @@ static int rvpmu_find_ctrs(void)
 
 static int rvpmu_event_map(struct perf_event *event, u64 *econfig)
 {
-	/* TODO: This should happen from json data and not rely on SBI encoding.
-	 * However, Qemu event encoding matches the SBI encoding. So this will
-	 * work for now.
-	 */
-	return rvpmu_sbi_event_map(event, econfig);
+	if (static_branch_likely(&riscv_pmu_cdeleg_available) && !pmu_sbi_is_fw_event(event))
+		return rvpmu_deleg_event_map(event, econfig);
+	else
+		return rvpmu_sbi_event_map(event, econfig);
 }
 
 static int rvpmu_ctr_get_idx(struct perf_event *event)
@@ -1383,6 +1395,8 @@ static int rvpmu_device_probe(struct platform_device *pdev)
 		pmu->pmu.capabilities |= PERF_PMU_CAP_NO_EXCLUDE;
 	}
 
+	//TODO: Fix this for delegation scenarios. Also the vendors may ha
+	// different format.
 	pmu->pmu.attr_groups = riscv_pmu_attr_groups;
 	pmu->cmask = cmask;
 	pmu->ctr_start = rvpmu_ctr_start;
