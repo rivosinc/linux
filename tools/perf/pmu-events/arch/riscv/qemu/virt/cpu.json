@@ -1,0 +1,32 @@
+[
+  {
+    "EventName": "cycles_executed",
+    "EventCode": "0x00",
+    "BriefDescription": "cycle executed",
+    "CounterIDMask":"0xF8"
+  },
+  {
+    "EventName": "inst_retired",
+    "EventCode": "0x01",
+    "BriefDescription": "instruction retired",
+    "CounterIDMask":"0xF8"
+  },
+  {
+    "EventName": "dTLB_load_misses",
+    "EventCode": "0x10019",
+    "BriefDescription": "Data TLB load miss",
+    "CounterIDMask":"0xF8"
+  },
+  {
+    "EventName": "dTLB_store_misses",
+    "EventCode": "0x1001B",
+    "BriefDescription": "Data TLB store miss",
+    "CounterIDMask":"0xF8"
+  },
+  {
+    "EventName": "iTLB_load_misses",
+    "EventCode": "0x10021",
+    "BriefDescription": "Instruction fetch TLB load miss",
+    "CounterIDMask":"0xF8"
+  }
+]
