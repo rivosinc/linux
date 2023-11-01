@@ -31,6 +31,8 @@
 
 #define RISCV_PMU_DELEG_RAW_EVENT_MASK GENMASK_ULL(55, 0)
 
+#define RISCV_PMU_FIXED_COUNTER_MASK 0x05
+
 struct cpu_hw_events {
 	/* currently enabled events */
 	int			n_events;

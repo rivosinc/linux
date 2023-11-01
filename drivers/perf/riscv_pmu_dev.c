@@ -35,6 +35,7 @@
 
 PMU_FORMAT_ATTR(event, "config:0-56");
 PMU_FORMAT_ATTR(firmware, "config:63");
+PMU_FORMAT_ATTR(counterid_mask, "config2:0-31");
 
 static DEFINE_STATIC_KEY_FALSE(riscv_pmu_sbi_available);
 static DEFINE_STATIC_KEY_FALSE(riscv_pmu_cdeleg_available);
@@ -44,6 +45,7 @@ static bool sbi_available = false;
 static struct attribute *riscv_arch_formats_attr[] = {
 	&format_attr_event.attr,
 	&format_attr_firmware.attr,
+	&format_attr_counterid_mask.attr,
 	NULL,
 };
 
@@ -939,17 +941,20 @@ static int get_deleg_fixed_hw_idx(unsigned long event_value)
 		return -EINVAL;
 }
 
-static int get_deleg_next_hw_idx(struct cpu_hw_events *cpuc)
+static int get_deleg_next_hw_idx(struct cpu_hw_events *cpuc, struct perf_event *event)
 {
 	unsigned long hw_ctr_mask = 0;
 
-	/* TODO: Treat every hpmcounter can monitor every event for now.
-	 * The event to counter mapping should come from the json file.
-	 * The mapping should also tell if sampling is supported or not.
-	 */
-
 	/* Select only hpmcounters */
 	hw_ctr_mask = cmask & (~0x7);
+
+	/* Mask off the counters that can't monitor this event (specified via json)
+	 * The counter mask for this event is set in config2 via the property 'CounterIDMask'
+	 * in the json file or manual configuration of config2. If the config2 is not set, it
+	 * is assumed all the available hpmcounters can monitor this event.
+	 */
+	if (!event->attr.config2)
+		hw_ctr_mask = hw_ctr_mask & event->attr.config2;
 	hw_ctr_mask &= ~(cpuc->used_hw_ctrs[0]);
 	return __ffs(hw_ctr_mask);
 }
@@ -977,9 +982,6 @@ static int rvpmu_deleg_ctr_get_idx(struct perf_event *event)
 	unsigned long hw_ctr_max_id, priv_filter;
 	int idx;
 
-	/* TODO: We should not rely on SBI Perf encoding to check if the event
-	 * is a fixed one or not.
-	 */
 	if (!is_sampling_event(event)) {
 		idx = get_deleg_fixed_hw_idx(hwc->event_base);
 		if (idx == 0 || idx == 2) {
@@ -992,7 +994,7 @@ static int rvpmu_deleg_ctr_get_idx(struct perf_event *event)
 	}
 
 	hw_ctr_max_id = __fls(cmask);
-	idx = get_deleg_next_hw_idx(cpuc);
+	idx = get_deleg_next_hw_idx(cpuc, event);
 	if (idx < 3 || idx >= hw_ctr_max_id)
 		goto out_err;
 found_idx:
