@@ -10,6 +10,7 @@
 
 #define pr_fmt(fmt) "riscv-pmu-dev: " fmt
 
+#include <linux/debugfs.h>
 #include <linux/mod_devicetable.h>
 #include <linux/perf/riscv_pmu.h>
 #include <linux/platform_device.h>
@@ -24,6 +25,8 @@
 #include <asm/sbi.h>
 #include <asm/hwcap.h>
 #include <asm/csr_ind.h>
+
+extern uint64_t ecall_count;
 
 #define SYSCTL_NO_USER_ACCESS	0
 #define SYSCTL_USER_ACCESS	1
@@ -927,7 +930,7 @@ static int rvpmu_deleg_find_ctrs(void)
 
 static int get_deleg_fixed_hw_idx(unsigned long event_value)
 {
-	int cidx;
+	int cidx = -EINVAL;
 
 	if (event_value == PERF_COUNT_HW_CPU_CYCLES)
 		cidx = 0;
@@ -956,6 +959,7 @@ static int get_deleg_next_hw_idx(struct cpu_hw_events *cpuc, struct perf_event *
 	if (!event->attr.config2)
 		hw_ctr_mask = hw_ctr_mask & event->attr.config2;
 	hw_ctr_mask &= ~(cpuc->used_hw_ctrs[0]);
+
 	return __ffs(hw_ctr_mask);
 }
 
@@ -1239,6 +1243,40 @@ static inline int riscv_pm_pmu_register(struct riscv_pmu *pmu) { return 0; }
 static inline void riscv_pm_pmu_unregister(struct riscv_pmu *pmu) { }
 #endif
 
+#ifdef CONFIG_DEBUG_FS
+static struct dentry *pmu_stats_file;
+
+static int riscv_pmu_stats_show(struct seq_file *s, void *data)
+{
+	seq_printf(s, "%lld", ecall_count);
+	seq_puts(s, "\n");
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(riscv_pmu_stats);
+
+static void pmu_sbi_debugfs_init(void)
+{
+	struct dentry *dir;
+
+	dir = debugfs_create_dir("pmu-stats", NULL);
+	if (!dir) {
+		pr_err("PMU SBI stats debugfs directory creation failed\n");
+		return;
+	}
+
+	pmu_stats_file = debugfs_create_file("ecalls", 0660, dir, NULL, &riscv_pmu_stats_fops);
+	if (!pmu_stats_file) {
+		pr_err("PMU SBI ecall stats debugfs file creation failed\n");
+		debugfs_remove(dir);
+		return;
+	}
+}
+#else
+static void pmu_sbi_debugfs_init(void) {};
+#endif
+
+
 static void riscv_pmu_destroy(struct riscv_pmu *pmu)
 {
 	riscv_pm_pmu_unregister(pmu);
@@ -1426,6 +1464,7 @@ static int rvpmu_device_probe(struct platform_device *pdev)
 		goto out_unregister;
 
 	register_sysctl("kernel", sbi_pmu_sysctl_table);
+	pmu_sbi_debugfs_init();
 
 	return 0;
 
