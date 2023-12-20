@@ -147,6 +147,12 @@ properties:
             and mode-based filtering as ratified at commit 01d1df0 ("Add ability
             to manually trigger workflow. (#2)") of riscv-count-overflow.
 
+        - const: ssdbltrp
+          description: |
+            The standard Ssdbltrp supervisor-level extension for double trap
+            handling as currently defined by commit e85847b ("Merge pull request
+            #32 from ved-rivos/0415_1 ") of riscv-double-trap.
+
         - const: sstc
           description: |
             The standard Sstc supervisor-level extension for time compare as
