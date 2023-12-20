@@ -159,6 +159,13 @@ properties:
             and mode-based filtering as ratified at commit 01d1df0 ("Add ability
             to manually trigger workflow. (#2)") of riscv-count-overflow.
 
+        - const: ssdbltrp
+          description: |
+            The standard Ssdbltrp supervisor-level extension for double trap
+            handling as currently defined by commit 52a5742d5ab5 ("Smdbltrp/
+            Ssdbltrp have been ratified (#1616)") of the privileged ISA
+            specification.
+
         - const: ssnpm
           description: |
             The standard Ssnpm extension for next-mode pointer masking as
