@@ -109,6 +109,12 @@ properties:
             The standard C extension for compressed instructions, as ratified in
             the 20191213 version of the unprivileged ISA specification.
 
+        - const: b
+          description:
+            The standard b extension for bit manipulation instructions, as
+            ratified in the XXXXXXXX version of the bit manipulation extension
+            manual.
+
         - const: v
           description:
             The standard V extension for vector operations, as ratified
