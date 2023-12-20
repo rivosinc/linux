@@ -69,6 +69,9 @@ static void hwprobe_isa_ext0(struct riscv_hwprobe *pair,
 	if (riscv_isa_extension_available(NULL, c))
 		pair->value |= RISCV_HWPROBE_IMA_C;
 
+	if (riscv_isa_extension_available(NULL, b))
+		pair->value |= RISCV_HWPROBE_IMA_B;
+
 	if (has_vector())
 		pair->value |= RISCV_HWPROBE_IMA_V;
 
