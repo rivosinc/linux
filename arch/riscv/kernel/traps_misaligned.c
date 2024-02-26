@@ -16,6 +16,7 @@
 #include <asm/entry-common.h>
 #include <asm/hwprobe.h>
 #include <asm/cpufeature.h>
+#include <asm/sbi.h>
 #include <asm/vector.h>
 
 #define INSN_MATCH_LB			0x3
@@ -706,4 +707,62 @@ bool check_unaligned_access_emulated_all_cpus(void)
 {
 	return false;
 }
+#endif
+
+#ifdef CONFIG_RISCV_SBI
+
+struct misaligned_deleg_req {
+	bool enable;
+	int error;
+};
+
+static void
+cpu_unaligned_sbi_request_delegation(void *arg)
+{
+	struct misaligned_deleg_req *req = arg;
+	struct sbiret ret;
+
+	ret = sbi_ecall(SBI_EXT_FWFT, SBI_EXT_FWFT_SET,
+			SBI_FWFT_MISALIGNED_EXC_DELEG, req->enable, 0, 0, 0, 0);
+	if (ret.error)
+		req->error = 1;
+}
+
+static void unaligned_sbi_request_delegation(void)
+{
+	struct misaligned_deleg_req req = {true, 0};
+
+	on_each_cpu(cpu_unaligned_sbi_request_delegation, &req, 1);
+	if (!req.error) {
+		pr_info("SBI misaligned access exception delegation ok\n");
+		/*
+		 * Note that we don't have to take any specific action here, if
+		 * the delegation is successful, then
+		 * check_unaligned_access_emulated() will verify that indeed the
+		 * platform traps on misaligned accesses.
+		 */
+		return;
+	}
+
+	/*
+	 * If at least delegation request failed on one hart, revert misaligned
+	 * delegation for all harts, if we don't do that, we'll panic at
+	 * misaligned delegation check time (see
+	 * check_unaligned_access_emulated()).
+	 */
+	req.enable = false;
+	req.error = 0;
+	on_each_cpu(cpu_unaligned_sbi_request_delegation, &req, 1);
+	if (req.error)
+		panic("Failed to disable misaligned delegation for all CPUs\n");
+
+}
+
+void unaligned_access_init(void)
+{
+	if (sbi_probe_extension(SBI_EXT_FWFT) > 0)
+		unaligned_sbi_request_delegation();
+}
+#else
+void unaligned_access_init(void) {}
 #endif
