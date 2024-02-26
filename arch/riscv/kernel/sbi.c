@@ -581,6 +581,26 @@ long sbi_get_mimpid(void)
 }
 EXPORT_SYMBOL_GPL(sbi_get_mimpid);
 
+#ifdef CONFIG_RISCV_MISALIGNED
+static void
+cpu_unaligned_sbi_request_delegation(void *ignored)
+{
+	/* Note that we do not really care if the call fails or succeed since
+	 * the misaligned handling code will check if misaligned accesses are
+	 * trapping or not per cpu.
+	 */
+	sbi_ecall(SBI_EXT_FWFT, SBI_EXT_FWFT_SET, SBI_FWFT_MISALIGNED_EXC_DELEG,
+		  1, 0, 0, 0, 0);
+}
+
+static void unaligned_sbi_request_delegation(void)
+{
+	on_each_cpu(cpu_unaligned_sbi_request_delegation, NULL, 1);
+}
+#else
+static void unaligned_sbi_request_delegation(void) {}
+#endif
+
 bool sbi_debug_console_available;
 
 int sbi_debug_console_write(const char *bytes, unsigned int num_bytes)
@@ -686,6 +706,11 @@ void __init sbi_init(void)
 		    (sbi_probe_extension(SBI_EXT_DBCN) > 0)) {
 			pr_info("SBI DBCN extension detected\n");
 			sbi_debug_console_available = true;
+		}
+		if ((sbi_spec_version >= sbi_mk_version(3, 0)) &&
+		    (sbi_probe_extension(SBI_EXT_FWFT) > 0)) {
+			pr_info("SBI FWFT extension detected\n");
+			unaligned_sbi_request_delegation();
 		}
 	} else {
 		__sbi_set_timer = __sbi_set_timer_v01;
