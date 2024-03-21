@@ -197,6 +197,13 @@ config RISCV_SSE_TEST
 	  Select if you want to enable SSE extension testing at boot time.
 	  This will run a series of test which verifies SSE sanity.
 
+config RISCV_DBLTRP
+	bool "Enable Double trap handling"
+	depends on RISCV_SSE && RISCV_SBI
+	default n
+	help
+	  Select if you want to enable SSE double trap handler.
+
 config SYSFB
 	bool
 	select BOOT_VESA_SUPPORT
