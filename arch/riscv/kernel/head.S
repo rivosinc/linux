@@ -106,6 +106,10 @@ relocate_enable_mmu:
 	csrw CSR_SATP, a0
 .align 2
 1:
+	/* A trap potentially set the SDT flag, clear it */
+	li t0, SR_SDT
+	csrc CSR_STATUS, t0
+
 	/* Set trap vector to spin forever to help debug */
 	la a0, .Lsecondary_park
 	csrw CSR_TVEC, a0
