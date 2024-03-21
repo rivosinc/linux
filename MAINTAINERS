@@ -19638,6 +19638,13 @@ F:	arch/riscv/
 N:	riscv
 K:	riscv
 
+RISC-V DOUBLE TRAP DRIVER
+M:	Clément Léger <cleger@rivosinc.com>
+L:	linux-riscv@lists.infradead.org
+S:	Maintained
+F:	drivers/firmware/riscv/riscv_double_trap.c
+F:	include/linux/riscv_double_trap.h
+
 RISC-V FIRMWARE DRIVERS
 M:	Conor Dooley <conor@kernel.org>
 L:	linux-riscv@lists.infradead.org
