@@ -65,7 +65,7 @@ SYM_CODE_START(handle_sse)
 	REG_S a4, PT_SP(sp)
 
 	/* Disable user memory access and floating/vector computing */
-	li t0, SR_SUM | SR_FS_VS
+	li t0, SR_SUM | SR_FS_VS | SR_SDT
 	csrc CSR_STATUS, t0
 
 	load_global_pointer
@@ -129,8 +129,8 @@ SYM_CODE_START(handle_sse)
 	call do_sse
 
 	/* Restore saved CSRs */
-	csrw CSR_SSCRATCH, s4
 	csrw CSR_SSTATUS, s5
+	csrw CSR_SSCRATCH, s4
 
 #ifdef CONFIG_FRAME_POINTER
 	/* Frame pointer is created only when kernel is interrupted */

@@ -49,23 +49,12 @@ SYM_CODE_START(handle_exception)
 	REG_S x5,  PT_T0(sp)
 	save_from_x6_to_x31
 
-	/*
-	 * Disable user-mode memory access as it should only be set in the
-	 * actual user copy routines.
-	 *
-	 * Disable the FPU/Vector to detect illegal usage of floating point
-	 * or vector in kernel space.
-	 */
-	li t0, SR_SUM | SR_FS_VS
-
 	REG_L s0, TASK_TI_USER_SP(tp)
-	csrrc s1, CSR_STATUS, t0
 	csrr s2, CSR_EPC
 	csrr s3, CSR_TVAL
 	csrr s4, CSR_CAUSE
 	csrr s5, CSR_SCRATCH
 	REG_S s0, PT_SP(sp)
-	REG_S s1, PT_STATUS(sp)
 	REG_S s2, PT_EPC(sp)
 	REG_S s3, PT_BADADDR(sp)
 	REG_S s4, PT_CAUSE(sp)
@@ -76,6 +65,21 @@ SYM_CODE_START(handle_exception)
 	 * occurs, the exception vector knows it came from the kernel
 	 */
 	csrw CSR_SCRATCH, x0
+
+	/*
+	 * Disable user-mode memory access as it should only be set in the
+	 * actual user copy routines.
+	 *
+	 * Disable the FPU/Vector to detect illegal usage of floating point
+	 * or vector in kernel space.
+	 *
+	 * Clear supervisor double trap bit as all trap context is saved and we
+	 * can handle another one
+	 */
+	li t0, SR_SUM | SR_FS_VS | SR_SDT
+
+	csrrc s1, CSR_STATUS, t0
+	REG_S s1, PT_STATUS(sp)
 
 	/* Load the global pointer */
 	load_global_pointer
@@ -127,19 +131,29 @@ SYM_CODE_START_NOALIGN(ret_from_exception)
 #ifdef CONFIG_RISCV_M_MODE
 	/* the MPP value is too large to be used as an immediate arg for addi */
 	li t0, SR_MPP
-	and s0, s0, t0
+	and t1, s0, t0
 #else
-	andi s0, s0, SR_SPP
+	andi t1, s0, SR_SPP
 #endif
-	bnez s0, 1f
+
+#ifdef CONFIG_RISCV_ISA_V_PREEMPTIVE
+	move a0, sp
+	call riscv_v_context_nesting_end
+#endif
+	/*
+	 * Restore STATUS now to set supervisor double trap bit which means that
+	 * from now on, we can not handle an exception up to "sret"
+	 */
+	csrw CSR_STATUS, s0
+	bnez t1, 1f
 
 #ifdef CONFIG_GCC_PLUGIN_STACKLEAK
 	call	stackleak_erase_on_task_stack
 #endif
 
 	/* Save unwound kernel stack pointer in thread_info */
-	addi s0, sp, PT_SIZE_ON_STACK
-	REG_S s0, TASK_TI_KERNEL_SP(tp)
+	addi t1, sp, PT_SIZE_ON_STACK
+	REG_S t1, TASK_TI_KERNEL_SP(tp)
 
 	/* Save the kernel shadow call stack pointer */
 	scs_save_current
@@ -150,11 +164,6 @@ SYM_CODE_START_NOALIGN(ret_from_exception)
 	 */
 	csrw CSR_SCRATCH, tp
 1:
-#ifdef CONFIG_RISCV_ISA_V_PREEMPTIVE
-	move a0, sp
-	call riscv_v_context_nesting_end
-#endif
-	REG_L a0, PT_STATUS(sp)
 	/*
 	 * The current load reservation is effectively part of the processor's
 	 * state, in the sense that load reservations cannot be shared between
@@ -175,7 +184,6 @@ SYM_CODE_START_NOALIGN(ret_from_exception)
 	REG_L  a2, PT_EPC(sp)
 	REG_SC x0, a2, PT_EPC(sp)
 
-	csrw CSR_STATUS, a0
 	csrw CSR_EPC, a2
 
 	REG_L x1,  PT_RA(sp)
