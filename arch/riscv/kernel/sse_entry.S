@@ -65,7 +65,7 @@ SYM_CODE_START(handle_sse)
 	REG_S a4, PT_SP(sp)
 
 	/* Disable user memory access and floating/vector computing */
-	li t0, SR_SUM | SR_FS_VS
+	li t0, SR_SUM | SR_FS_VS | SR_SDT
 	csrc CSR_STATUS, t0
 
 	load_global_pointer
