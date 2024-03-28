@@ -159,9 +159,8 @@ static int truly_illegal_insn(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	utrap.stval = insn;
 	utrap.htval = 0;
 	utrap.htinst = 0;
-	kvm_riscv_vcpu_trap_redirect(vcpu, &utrap);
 
-	return 1;
+	return kvm_riscv_vcpu_trap_redirect(vcpu, &utrap);
 }
 
 static int truly_virtual_insn(struct kvm_vcpu *vcpu, struct kvm_run *run,
@@ -175,9 +174,8 @@ static int truly_virtual_insn(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	utrap.stval = insn;
 	utrap.htval = 0;
 	utrap.htinst = 0;
-	kvm_riscv_vcpu_trap_redirect(vcpu, &utrap);
 
-	return 1;
+	return kvm_riscv_vcpu_trap_redirect(vcpu, &utrap);
 }
 
 /**
@@ -422,8 +420,7 @@ int kvm_riscv_vcpu_virtual_insn(struct kvm_vcpu *vcpu, struct kvm_run *run,
 							  &utrap);
 			if (utrap.scause) {
 				utrap.sepc = ct->sepc;
-				kvm_riscv_vcpu_trap_redirect(vcpu, &utrap);
-				return 1;
+				return kvm_riscv_vcpu_trap_redirect(vcpu, &utrap);
 			}
 		}
 		if (INSN_IS_16BIT(insn))
@@ -478,8 +475,7 @@ int kvm_riscv_vcpu_mmio_load(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		if (utrap.scause) {
 			/* Redirect trap if we failed to read instruction */
 			utrap.sepc = ct->sepc;
-			kvm_riscv_vcpu_trap_redirect(vcpu, &utrap);
-			return 1;
+			return kvm_riscv_vcpu_trap_redirect(vcpu, &utrap);
 		}
 		insn_len = INSN_LEN(insn);
 	}
@@ -604,8 +600,7 @@ int kvm_riscv_vcpu_mmio_store(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		if (utrap.scause) {
 			/* Redirect trap if we failed to read instruction */
 			utrap.sepc = ct->sepc;
-			kvm_riscv_vcpu_trap_redirect(vcpu, &utrap);
-			return 1;
+			return kvm_riscv_vcpu_trap_redirect(vcpu, &utrap);
 		}
 		insn_len = INSN_LEN(insn);
 	}

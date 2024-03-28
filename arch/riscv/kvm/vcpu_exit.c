@@ -126,16 +126,33 @@ unsigned long kvm_riscv_vcpu_unpriv_read(struct kvm_vcpu *vcpu,
 	return val;
 }
 
+static int kvm_riscv_double_trap(struct kvm_vcpu *vcpu,
+				 struct kvm_cpu_trap *trap)
+{
+	pr_err("Guest double trap");
+	/* TODO: Implement SSE support */
+
+	return -EOPNOTSUPP;
+}
+
 /**
  * kvm_riscv_vcpu_trap_redirect -- Redirect trap to Guest
  *
  * @vcpu: The VCPU pointer
  * @trap: Trap details
  */
-void kvm_riscv_vcpu_trap_redirect(struct kvm_vcpu *vcpu,
-				  struct kvm_cpu_trap *trap)
+int kvm_riscv_vcpu_trap_redirect(struct kvm_vcpu *vcpu,
+				 struct kvm_cpu_trap *trap)
 {
 	unsigned long vsstatus = csr_read(CSR_VSSTATUS);
+
+	if (riscv_isa_extension_available(vcpu->arch.isa, SSDBLTRP)) {
+		if (vsstatus & SR_SDT)
+			return kvm_riscv_double_trap(vcpu, trap);
+
+		/* Set Double Trap bit to enable double trap detection */
+		vsstatus |= SR_SDT;
+	}
 
 	/* Change Guest SSTATUS.SPP bit */
 	vsstatus &= ~SR_SPP;
@@ -163,6 +180,8 @@ void kvm_riscv_vcpu_trap_redirect(struct kvm_vcpu *vcpu,
 
 	/* Set Guest privilege mode to supervisor */
 	vcpu->arch.guest_context.sstatus |= SR_SPP;
+
+	return 1;
 }
 
 /*
@@ -185,10 +204,8 @@ int kvm_riscv_vcpu_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	case EXC_INST_ILLEGAL:
 	case EXC_LOAD_MISALIGNED:
 	case EXC_STORE_MISALIGNED:
-		if (vcpu->arch.guest_context.hstatus & HSTATUS_SPV) {
-			kvm_riscv_vcpu_trap_redirect(vcpu, trap);
-			ret = 1;
-		}
+		if (vcpu->arch.guest_context.hstatus & HSTATUS_SPV)
+			ret = kvm_riscv_vcpu_trap_redirect(vcpu, trap);
 		break;
 	case EXC_VIRTUAL_INST_FAULT:
 		if (vcpu->arch.guest_context.hstatus & HSTATUS_SPV)
@@ -203,6 +220,10 @@ int kvm_riscv_vcpu_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	case EXC_SUPERVISOR_SYSCALL:
 		if (vcpu->arch.guest_context.hstatus & HSTATUS_SPV)
 			ret = kvm_riscv_vcpu_sbi_ecall(vcpu, run);
+		break;
+	case EXC_DOUBLE_TRAP:
+		if (vcpu->arch.guest_context.hstatus & HSTATUS_SPV)
+			ret = kvm_riscv_double_trap(vcpu, trap);
 		break;
 	default:
 		break;

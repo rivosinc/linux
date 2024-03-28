@@ -154,7 +154,6 @@ SYM_FUNC_START(__kvm_riscv_switch_to)
 	REG_L	t2, (KVM_ARCH_HOST_SSCRATCH)(a0)
 	REG_L	t3, (KVM_ARCH_HOST_SCOUNTEREN)(a0)
 	REG_L	t4, (KVM_ARCH_HOST_HSTATUS)(a0)
-	REG_L	t5, (KVM_ARCH_HOST_SSTATUS)(a0)
 
 	/* Save Guest SEPC */
 	csrr	t0, CSR_SEPC
@@ -171,8 +170,8 @@ SYM_FUNC_START(__kvm_riscv_switch_to)
 	/* Save Guest and Restore Host HSTATUS */
 	csrrw	t4, CSR_HSTATUS, t4
 
-	/* Save Guest and Restore Host SSTATUS */
-	csrrw	t5, CSR_SSTATUS, t5
+	/* Save Guest SSTATUS */
+	csrr	t5, CSR_SSTATUS
 
 	/* Store Guest CSR values */
 	REG_S	t0, (KVM_ARCH_GUEST_SEPC)(a0)
@@ -205,6 +204,20 @@ SYM_FUNC_START(__kvm_riscv_switch_to)
 	REG_L	s9, (KVM_ARCH_HOST_S9)(a0)
 	REG_L	s10, (KVM_ARCH_HOST_S10)(a0)
 	REG_L	s11, (KVM_ARCH_HOST_S11)(a0)
+
+	csrr	t1, CSR_SCAUSE
+	csrr	t2, CSR_STVAL
+	csrr	t3, CSR_HTVAL
+	csrr	t4, CSR_HTINST
+	REG_S	t0, (KVM_ARCH_TRAP_SEPC)(a1)
+	REG_S	t1, (KVM_ARCH_TRAP_SCAUSE)(a1)
+	REG_S	t2, (KVM_ARCH_TRAP_STVAL)(a1)
+	REG_S	t3, (KVM_ARCH_TRAP_HTVAL)(a1)
+	REG_S	t4, (KVM_ARCH_TRAP_HTINST)(a1)
+
+	/* Restore Host SSTATUS */
+	REG_L	t5, (KVM_ARCH_HOST_SSTATUS)(a0)
+	csrw	CSR_SSTATUS, t5
 
 	/* Return to C code */
 	ret
