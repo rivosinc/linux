@@ -126,16 +126,39 @@ unsigned long kvm_riscv_vcpu_unpriv_read(struct kvm_vcpu *vcpu,
 	return val;
 }
 
+static int kvm_riscv_double_trap(struct kvm_vcpu *vcpu,
+				 struct kvm_cpu_trap *trap)
+{
+	pr_err("Guest double trap");
+	/* TODO: Implement SSE support */
+
+	return -EOPNOTSUPP;
+}
+
 /**
  * kvm_riscv_vcpu_trap_redirect -- Redirect trap to Guest
  *
  * @vcpu: The VCPU pointer
  * @trap: Trap details
  */
-void kvm_riscv_vcpu_trap_redirect(struct kvm_vcpu *vcpu,
-				  struct kvm_cpu_trap *trap)
+int kvm_riscv_vcpu_trap_redirect(struct kvm_vcpu *vcpu,
+				 struct kvm_cpu_trap *trap)
 {
-	unsigned long vsstatus = csr_read(CSR_VSSTATUS);
+	unsigned long henvcfg, vsstatus = csr_read(CSR_VSSTATUS);
+
+	if (riscv_isa_extension_available(vcpu->arch.isa, SSDBLTRP)) {
+		henvcfg = csr_read(CSR_HENVCFG);
+		if (IS_ENABLED(CONFIG_32BIT))
+			henvcfg |= csr_read(CSR_HENVCFGH) << 32;
+		if ((henvcfg & ENVCFG_DTE)) {
+			if (vsstatus & SR_SDT)
+				return kvm_riscv_double_trap(vcpu, trap);
+
+			/* Set Double Trap bit to enable double trap detection */
+			vsstatus |= SR_SDT;
+			pr_err("KVM redirect double trap\n");
+		}
+	}
 
 	/* Change Guest SSTATUS.SPP bit */
 	vsstatus &= ~SR_SPP;
@@ -163,6 +186,8 @@ void kvm_riscv_vcpu_trap_redirect(struct kvm_vcpu *vcpu,
 
 	/* Set Guest privilege mode to supervisor */
 	vcpu->arch.guest_context.sstatus |= SR_SPP;
+
+	return 1;
 }
 
 /*
@@ -188,8 +213,7 @@ int kvm_riscv_vcpu_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	case EXC_LOAD_ACCESS:
 	case EXC_STORE_ACCESS:
 		if (vcpu->arch.guest_context.hstatus & HSTATUS_SPV) {
-			kvm_riscv_vcpu_trap_redirect(vcpu, trap);
-			ret = 1;
+			ret = kvm_riscv_vcpu_trap_redirect(vcpu, trap);
 		}
 		break;
 	case EXC_VIRTUAL_INST_FAULT:
@@ -209,6 +233,10 @@ int kvm_riscv_vcpu_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	case EXC_BREAKPOINT:
 		run->exit_reason = KVM_EXIT_DEBUG;
 		ret = 0;
+		break;
+	case EXC_DOUBLE_TRAP:
+		if (vcpu->arch.guest_context.hstatus & HSTATUS_SPV)
+			ret = kvm_riscv_double_trap(vcpu, trap);
 		break;
 	default:
 		break;

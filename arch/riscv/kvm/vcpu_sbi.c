@@ -459,10 +459,8 @@ int kvm_riscv_vcpu_sbi_ecall(struct kvm_vcpu *vcpu, struct kvm_run *run)
 
 	/* Handle special error cases i.e trap, exit or userspace forward */
 	if (sbi_ret.utrap->scause) {
-		/* No need to increment sepc or exit ioctl loop */
-		ret = 1;
 		sbi_ret.utrap->sepc = cp->sepc;
-		kvm_riscv_vcpu_trap_redirect(vcpu, sbi_ret.utrap);
+		ret = kvm_riscv_vcpu_trap_redirect(vcpu, sbi_ret.utrap);
 		next_sepc = false;
 		goto ecall_done;
 	}
