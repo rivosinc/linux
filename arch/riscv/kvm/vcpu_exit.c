@@ -7,6 +7,7 @@
  */
 
 #include <linux/kvm_host.h>
+#include <linux/riscv_double_trap.h>
 #include <asm/csr.h>
 #include <asm/insn-def.h>
 
@@ -126,16 +127,35 @@ unsigned long kvm_riscv_vcpu_unpriv_read(struct kvm_vcpu *vcpu,
 	return val;
 }
 
+static int kvm_riscv_double_trap(struct kvm_vcpu *vcpu,
+				 struct kvm_cpu_trap *trap)
+{
+	/* TODO: Implement SSE support */
+	pr_err("Guest double trap");
+
+	return -EOPNOTSUPP;
+}
+
 /**
  * kvm_riscv_vcpu_trap_redirect -- Redirect trap to Guest
  *
  * @vcpu: The VCPU pointer
  * @trap: Trap details
  */
-void kvm_riscv_vcpu_trap_redirect(struct kvm_vcpu *vcpu,
-				  struct kvm_cpu_trap *trap)
+int kvm_riscv_vcpu_trap_redirect(struct kvm_vcpu *vcpu,
+				 struct kvm_cpu_trap *trap)
 {
 	unsigned long vsstatus = csr_read(CSR_VSSTATUS);
+	struct kvm_vcpu_config *cfg = &vcpu->arch.cfg;
+
+	/* If double trap was enabled by guest */
+	if (cfg->henvcfg & ENVCFG_DTE) {
+		if (vsstatus & SR_SDT)
+			return kvm_riscv_double_trap(vcpu, trap);
+
+		/* Set Double Trap bit to enable double trap detection */
+		vsstatus |= SR_SDT;
+	}
 
 	/* Change Guest SSTATUS.SPP bit */
 	vsstatus &= ~SR_SPP;
@@ -163,6 +183,8 @@ void kvm_riscv_vcpu_trap_redirect(struct kvm_vcpu *vcpu,
 
 	/* Set Guest privilege mode to supervisor */
 	vcpu->arch.guest_context.sstatus |= SR_SPP;
+
+	return 1;
 }
 
 static inline int vcpu_redirect(struct kvm_vcpu *vcpu, struct kvm_cpu_trap *trap)
@@ -238,6 +260,10 @@ int kvm_riscv_vcpu_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	case EXC_BREAKPOINT:
 		run->exit_reason = KVM_EXIT_DEBUG;
 		ret = 0;
+		break;
+	case EXC_DOUBLE_TRAP:
+		if (vcpu->arch.guest_context.hstatus & HSTATUS_SPV)
+			ret = kvm_riscv_double_trap(vcpu, trap);
 		break;
 	default:
 		break;

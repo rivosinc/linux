@@ -214,6 +214,20 @@ SYM_FUNC_START(__kvm_riscv_switch_to)
 
 	RESTORE_HOST_GPRS
 
+	csrr	t1, CSR_SCAUSE
+	csrr	t2, CSR_STVAL
+	csrr	t3, CSR_HTVAL
+	csrr	t4, CSR_HTINST
+	REG_S	t0, (KVM_ARCH_TRAP_SEPC)(a1)
+	REG_S	t1, (KVM_ARCH_TRAP_SCAUSE)(a1)
+	REG_S	t2, (KVM_ARCH_TRAP_STVAL)(a1)
+	REG_S	t3, (KVM_ARCH_TRAP_HTVAL)(a1)
+	REG_S	t4, (KVM_ARCH_TRAP_HTINST)(a1)
+
+	/* Restore Host SSTATUS */
+	REG_L	t5, (KVM_ARCH_HOST_SSTATUS)(a0)
+	csrw	CSR_SSTATUS, t5
+
 	/* Return to C code */
 	ret
 SYM_FUNC_END(__kvm_riscv_switch_to)

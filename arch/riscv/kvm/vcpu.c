@@ -17,6 +17,8 @@
 #include <linux/sched/signal.h>
 #include <linux/fs.h>
 #include <linux/kvm_host.h>
+#include <linux/riscv_double_trap.h>
+#include <asm/csr.h>
 #include <asm/cacheflush.h>
 #include <asm/kvm_nacl.h>
 #include <asm/kvm_vcpu_vector.h>
@@ -70,6 +72,9 @@ static void kvm_riscv_vcpu_context_reset(struct kvm_vcpu *vcpu,
 
 	/* Setup reset state of shadow SSTATUS and HSTATUS CSRs */
 	cntx->sstatus = SR_SPP | SR_SPIE;
+	/* Enable double trap to be handled in kvm_switch_to */
+	if (riscv_double_trap_enabled())
+		cntx->sstatus |= SR_SDT;
 
 	cntx->hstatus |= HSTATUS_VTW;
 	cntx->hstatus |= HSTATUS_SPVP;
@@ -846,7 +851,7 @@ static void noinstr kvm_riscv_vcpu_enter_exit(struct kvm_vcpu *vcpu,
 	} else {
 		hcntx->hstatus = csr_swap(CSR_HSTATUS, gcntx->hstatus);
 
-		__kvm_riscv_switch_to(&vcpu->arch);
+		__kvm_riscv_switch_to(&vcpu->arch, trap);
 
 		gcntx->hstatus = csr_swap(CSR_HSTATUS, hcntx->hstatus);
 
