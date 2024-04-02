@@ -629,6 +629,9 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 	csr->hvip = csr_read(CSR_HVIP);
 	csr->vsatp = csr_read(CSR_VSATP);
 	cfg->hedeleg = csr_read(CSR_HEDELEG);
+	cfg->henvcfg = csr_read(CSR_HENVCFG);
+	if (IS_ENABLED(CONFIG_32BIT))
+		cfg->henvcfg |= csr_read(CSR_HENVCFGH) << 32;
 }
 
 static void kvm_riscv_check_vcpu_requests(struct kvm_vcpu *vcpu)

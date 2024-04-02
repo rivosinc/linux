@@ -9,10 +9,19 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/kvm_host.h>
+#include <linux/riscv_double_trap.h>
 #include <asm/cpufeature.h>
 #include <asm/sbi.h>
 #include <asm/kvm_vcpu_sbi.h>
 #include <asm/kvm_vcpu_sbi_fwft.h>
+
+#ifdef CONFIG_32BIT
+# define CSR_HENVCFG_DBLTRP	CSR_HENVCFGH
+# define DBLTRP_DTE	(ENVCFG_DTE >> 32)
+#else
+# define CSR_HENVCFG_DBLTRP	CSR_HENVCFG
+# define DBLTRP_DTE	ENVCFG_DTE
+#endif
 
 #define MIS_DELEG (1UL << EXC_LOAD_MISALIGNED | 1UL << EXC_STORE_MISALIGNED)
 
@@ -64,6 +73,33 @@ static int kvm_sbi_fwft_get_misaligned_delegation(struct kvm_vcpu *vcpu,
 		return SBI_ERR_NOT_SUPPORTED;
 
 	*value = (csr_read(CSR_HEDELEG) & MIS_DELEG) != 0;
+
+	return SBI_SUCCESS;
+}
+
+static int kvm_sbi_fwft_set_double_trap(struct kvm_vcpu *vcpu,
+					struct kvm_sbi_fwft_config *conf,
+					unsigned long value)
+{
+	if (!riscv_double_trap_enabled())
+		return SBI_ERR_NOT_SUPPORTED;
+
+	if (value)
+		csr_set(CSR_HENVCFG_DBLTRP, DBLTRP_DTE);
+	else
+		csr_clear(CSR_HENVCFG_DBLTRP, DBLTRP_DTE);
+
+	return SBI_SUCCESS;
+}
+
+static int kvm_sbi_fwft_get_double_trap(struct kvm_vcpu *vcpu,
+					struct kvm_sbi_fwft_config *conf,
+					unsigned long *value)
+{
+	if (!riscv_double_trap_enabled())
+		return SBI_ERR_NOT_SUPPORTED;
+
+	*value = (csr_read(CSR_HENVCFG_DBLTRP) & DBLTRP_DTE) != 0;
 
 	return SBI_SUCCESS;
 }
@@ -174,6 +210,11 @@ static const struct kvm_sbi_fwft_feature features[] = {
 		.supported = kvm_sbi_fwft_misaligned_delegation_supported,
 		.set = kvm_sbi_fwft_set_misaligned_delegation,
 		.get = kvm_sbi_fwft_get_misaligned_delegation,
+	},
+	{
+		.id = SBI_FWFT_DOUBLE_TRAP,
+		.set = kvm_sbi_fwft_set_double_trap,
+		.get = kvm_sbi_fwft_get_double_trap,
 	}
 };
 
