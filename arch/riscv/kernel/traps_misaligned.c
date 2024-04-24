@@ -574,3 +574,4 @@ bool unaligned_ctl_available(void)
 {
 	return unaligned_ctl;
 }
+EXPORT_SYMBOL_GPL(unaligned_ctl_available);
