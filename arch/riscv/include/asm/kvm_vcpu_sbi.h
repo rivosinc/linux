@@ -31,6 +31,7 @@ struct kvm_vcpu_sbi_return {
 	unsigned long err_val;
 	struct kvm_cpu_trap *utrap;
 	bool uexit;
+	bool skip_regs_update;
 };
 
 struct kvm_vcpu_sbi_extension {
@@ -102,6 +103,7 @@ extern const struct kvm_vcpu_sbi_extension vcpu_sbi_ext_hsm;
 extern const struct kvm_vcpu_sbi_extension vcpu_sbi_ext_dbcn;
 extern const struct kvm_vcpu_sbi_extension vcpu_sbi_ext_susp;
 extern const struct kvm_vcpu_sbi_extension vcpu_sbi_ext_sta;
+extern const struct kvm_vcpu_sbi_extension vcpu_sbi_ext_sse;
 extern const struct kvm_vcpu_sbi_extension vcpu_sbi_ext_experimental;
 extern const struct kvm_vcpu_sbi_extension vcpu_sbi_ext_vendor;
 

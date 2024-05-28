@@ -41,6 +41,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 		kvm_riscv_mmu_free_pgd(kvm);
 		return r;
 	}
+	kvm_sbi_sse_global_init_vm(kvm);
 
 	kvm_riscv_aia_init_vm(kvm);
 
@@ -54,6 +55,8 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 	kvm_destroy_vcpus(kvm);
 
 	kvm_riscv_aia_destroy_vm(kvm);
+
+	kvm_sbi_sse_global_destroy_vm(kvm);
 }
 
 int kvm_vm_ioctl_irq_line(struct kvm *kvm, struct kvm_irq_level *irql,

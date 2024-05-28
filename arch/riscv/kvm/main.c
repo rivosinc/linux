@@ -64,6 +64,7 @@ static void kvm_riscv_teardown(void)
 {
 	kvm_riscv_aia_exit();
 	kvm_riscv_nacl_exit();
+	kvm_riscv_sbi_sse_exit();
 	kvm_unregister_perf_callbacks();
 }
 
@@ -87,6 +88,10 @@ static int __init riscv_kvm_init(void)
 		kvm_info("require SBI RFENCE extension\n");
 		return -ENODEV;
 	}
+
+	rc = kvm_riscv_sbi_sse_init();
+	if (rc)
+		return rc;
 
 	rc = kvm_riscv_nacl_init();
 	if (rc && rc != -ENODEV)

@@ -79,6 +79,10 @@ static const struct kvm_riscv_sbi_extension_entry sbi_ext[] = {
 		.ext_ptr = &vcpu_sbi_ext_sta,
 	},
 	{
+		.ext_idx = KVM_RISCV_SBI_EXT_SSE,
+		.ext_ptr = &vcpu_sbi_ext_sse,
+	},
+	{
 		.ext_idx = KVM_RISCV_SBI_EXT_EXPERIMENTAL,
 		.ext_ptr = &vcpu_sbi_ext_experimental,
 	},
@@ -480,7 +484,7 @@ int kvm_riscv_vcpu_sbi_ecall(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	 * When the SBI extension returns a Linux error code, it exits the ioctl
 	 * loop and forwards the error to userspace.
 	 */
-	if (ret < 0) {
+	if (ret < 0 || sbi_ret.skip_regs_update) {
 		next_sepc = false;
 		goto ecall_done;
 	}

@@ -731,6 +731,9 @@ static int kvm_riscv_check_vcpu_requests(struct kvm_vcpu *vcpu)
 		if (kvm_check_request(KVM_REQ_STEAL_UPDATE, vcpu))
 			kvm_riscv_vcpu_record_steal_time(vcpu);
 
+		if (kvm_check_request(KVM_REQ_SSE_EVENT_INJECT, vcpu))
+			kvm_sbi_sse_process_pending_events(vcpu);
+
 		if (kvm_dirty_ring_check_request(vcpu))
 			return 0;
 	}
