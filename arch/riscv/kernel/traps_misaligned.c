@@ -702,6 +702,8 @@ bool unaligned_ctl_available(void)
 {
 	return unaligned_ctl;
 }
+EXPORT_SYMBOL_GPL(unaligned_ctl_available);
+
 #else
 bool check_unaligned_access_emulated_all_cpus(void)
 {
