@@ -31,12 +31,11 @@ int kvm_arch_hardware_enable(void)
 		return rc;
 
 	/*
-	 * We just need to invoke aia enable for CoVE if host is in VS mode
-	 * However, if the host is running in HS mode, we need to initialize
-	 * other CSRs as well for legacy VMs.
-	 * TODO: Handle host in HS mode use case.
+	 * We just need to invoke aia enable for CoVE if host is in VS mode and TSM
+	 * supports AIA (COVI extension). However, if the host is running in HS mode,
+	 * we need to initialize other CSRs as well for legacy VMs.
 	 */
-	if (unlikely(kvm_riscv_cove_enabled()))
+	if (unlikely(kvm_riscv_cove_enabled()) && kvm_riscv_cove_capability(KVM_COVE_TSM_CAP_AIA))
 		goto enable_aia;
 
 	hedeleg = 0;

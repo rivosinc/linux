@@ -162,7 +162,7 @@ static int truly_illegal_insn(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	struct kvm_cpu_trap utrap = { 0 };
 
 	/* The host can not redirect any illegal instruction trap to TVM */
-	if (unlikely(is_cove_vcpu(vcpu)))
+	if (unlikely(is_cove_vm_finalized(vcpu->kvm)))
 		return -EPERM;
 
 	/* Redirect trap to Guest VCPU */
@@ -182,7 +182,7 @@ static int truly_virtual_insn(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	struct kvm_cpu_trap utrap = { 0 };
 
 	/* The host can not redirect any virtual instruction trap to TVM */
-	if (unlikely(is_cove_vcpu(vcpu)))
+	if (unlikely(is_cove_vm_finalized(vcpu->kvm)))
 		return -EPERM;
 
 	/* Redirect trap to Guest VCPU */
@@ -434,7 +434,7 @@ int kvm_riscv_vcpu_virtual_insn(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		if (insn == 0) {
 			ct = &vcpu->arch.guest_context;
 
-			if (unlikely(is_cove_vcpu(vcpu)))
+			if (unlikely(is_cove_vm_finalized(vcpu->kvm)))
 				return -EPERM;
 
 			insn = kvm_riscv_vcpu_unpriv_read(vcpu, true,
@@ -489,7 +489,7 @@ int kvm_riscv_vcpu_mmio_load(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		insn = htinst | INSN_16BIT_MASK;
 		insn_len = (htinst & BIT(1)) ? INSN_LEN(insn) : 2;
 	} else {
-		if (unlikely(is_cove_vcpu(vcpu)))
+		if (unlikely(is_cove_vm_finalized(vcpu->kvm)))
 			return -EFAULT;
 		/*
 		 * Bit[0] == 0 implies trapped instruction value is
@@ -618,7 +618,7 @@ int kvm_riscv_vcpu_mmio_store(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		insn = htinst | INSN_16BIT_MASK;
 		insn_len = (htinst & BIT(1)) ? INSN_LEN(insn) : 2;
 	} else {
-		if (unlikely(is_cove_vcpu(vcpu)))
+		if (unlikely(is_cove_vm_finalized(vcpu->kvm)))
 			return -EFAULT;
 		/*
 		 * Bit[0] == 0 implies trapped instruction value is
@@ -635,7 +635,7 @@ int kvm_riscv_vcpu_mmio_store(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		insn_len = INSN_LEN(insn);
 	}
 
-	if (is_cove_vcpu(vcpu)) {
+	if (is_cove_vm_finalized(vcpu->kvm)) {
 		nshmem = nacl_shmem();
 		data = nacl_shmem_gpr_read_cove(nshmem,
 					       REG_INDEX(insn, SH_RS2) * 8 +
@@ -659,7 +659,7 @@ int kvm_riscv_vcpu_mmio_store(struct kvm_vcpu *vcpu, struct kvm_run *run,
 #ifdef CONFIG_64BIT
 	} else if ((insn & INSN_MASK_C_SD) == INSN_MATCH_C_SD) {
 		len = 8;
-		if (is_cove_vcpu(vcpu)) {
+		if (is_cove_vm_finalized(vcpu->kvm)) {
 			data64 = nacl_shmem_gpr_read_cove(
 				nshmem,
 				RVC_RS2S(insn) * 8 + KVM_ARCH_GUEST_ZERO);
@@ -669,7 +669,7 @@ int kvm_riscv_vcpu_mmio_store(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	} else if ((insn & INSN_MASK_C_SDSP) == INSN_MATCH_C_SDSP &&
 		   ((insn >> SH_RD) & 0x1f)) {
 		len = 8;
-		if (is_cove_vcpu(vcpu)) {
+		if (is_cove_vm_finalized(vcpu->kvm)) {
 			data64 = nacl_shmem_gpr_read_cove(
 				nshmem, REG_INDEX(insn, SH_RS2C) * 8 +
 						KVM_ARCH_GUEST_ZERO);
@@ -679,7 +679,7 @@ int kvm_riscv_vcpu_mmio_store(struct kvm_vcpu *vcpu, struct kvm_run *run,
 #endif
 	} else if ((insn & INSN_MASK_C_SW) == INSN_MATCH_C_SW) {
 		len = 4;
-		if (is_cove_vcpu(vcpu)) {
+		if (is_cove_vm_finalized(vcpu->kvm)) {
 			data32 = nacl_shmem_gpr_read_cove(
 				nshmem,
 				RVC_RS2S(insn) * 8 + KVM_ARCH_GUEST_ZERO);
@@ -689,7 +689,7 @@ int kvm_riscv_vcpu_mmio_store(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	} else if ((insn & INSN_MASK_C_SWSP) == INSN_MATCH_C_SWSP &&
 		   ((insn >> SH_RD) & 0x1f)) {
 		len = 4;
-		if (is_cove_vcpu(vcpu)) {
+		if (is_cove_vm_finalized(vcpu->kvm)) {
 			data32 = nacl_shmem_gpr_read_cove(
 				nshmem, REG_INDEX(insn, SH_RS2C) * 8 +
 						KVM_ARCH_GUEST_ZERO);
@@ -779,13 +779,13 @@ int kvm_riscv_vcpu_mmio_return(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	len = vcpu->arch.mmio_decode.len;
 	shift = vcpu->arch.mmio_decode.shift;
 
-	if (is_cove_vcpu(vcpu))
+	if (is_cove_vm_finalized(vcpu->kvm))
 		nshmem = nacl_shmem();
 
 	switch (len) {
 	case 1:
 		data8 = *((u8 *)run->mmio.data);
-		if (is_cove_vcpu(vcpu)) {
+		if (is_cove_vm_finalized(vcpu->kvm)) {
 			nacl_shmem_gpr_write_cove(nshmem,
 						 REG_INDEX(insn, SH_RD) * 8 +
 							 KVM_ARCH_GUEST_ZERO,
@@ -797,7 +797,7 @@ int kvm_riscv_vcpu_mmio_return(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		break;
 	case 2:
 		data16 = *((u16 *)run->mmio.data);
-		if (is_cove_vcpu(vcpu)) {
+		if (is_cove_vm_finalized(vcpu->kvm)) {
 			nacl_shmem_gpr_write_cove(nshmem,
 						 REG_INDEX(insn, SH_RD) * 8 +
 							 KVM_ARCH_GUEST_ZERO,
@@ -809,7 +809,7 @@ int kvm_riscv_vcpu_mmio_return(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		break;
 	case 4:
 		data32 = *((u32 *)run->mmio.data);
-		if (is_cove_vcpu(vcpu)) {
+		if (is_cove_vm_finalized(vcpu->kvm)) {
 			nacl_shmem_gpr_write_cove(nshmem,
 						 REG_INDEX(insn, SH_RD) * 8 +
 							 KVM_ARCH_GUEST_ZERO,
@@ -821,7 +821,7 @@ int kvm_riscv_vcpu_mmio_return(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		break;
 	case 8:
 		data64 = *((u64 *)run->mmio.data);
-		if (is_cove_vcpu(vcpu)) {
+		if (is_cove_vm_finalized(vcpu->kvm)) {
 			nacl_shmem_gpr_write_cove(nshmem,
 						 REG_INDEX(insn, SH_RD) * 8 +
 							 KVM_ARCH_GUEST_ZERO,

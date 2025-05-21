@@ -730,8 +730,8 @@ long kvm_arch_vcpu_async_ioctl(struct file *filp,
 
 	if (ioctl == KVM_INTERRUPT) {
 		struct kvm_interrupt irq;
-		/* We do not support user space emulated IRQCHIP for TVMs yet */
-		if (is_cove_vcpu(vcpu))
+		/* We do not support user space emulated IRQCHIP for TVMs that utilize AIA yet */
+		if (is_cove_vm_finalized(vcpu->kvm) && kvm_riscv_cove_capability(KVM_COVE_TSM_CAP_AIA))
 			return -ENXIO;
 
 		if (copy_from_user(&irq, argp, sizeof(irq)))
@@ -832,18 +832,24 @@ void kvm_riscv_vcpu_flush_interrupts(struct kvm_vcpu *vcpu)
 
 void kvm_riscv_vcpu_sync_interrupts(struct kvm_vcpu *vcpu)
 {
-	unsigned long hvip;
-	struct kvm_vcpu_arch *v = &vcpu->arch;
 	struct kvm_vcpu_csr *csr = &vcpu->arch.guest_csr;
+	struct kvm_vcpu_arch *v = &vcpu->arch;
+	unsigned long hvip;
+	void *nshmem;
 
 	/* Read current HVIP and VSIE CSRs */
-	csr->vsie = nacl_csr_read(CSR_VSIE);
+	if (is_cove_vm_finalized(vcpu->kvm)) {
+		nshmem = nacl_shmem();
+		csr->vsie = nacl_shmem_csr_read(nshmem, CSR_VSIE);
+		/* The HVIP is not updated by the TSM. Expect it to be zero. */
+		hvip = nacl_shmem_csr_read(nshmem, CSR_HVIP);
+	} else {
+		/* Read current HVIP and VSIE CSRs */
+		csr->vsie = nacl_csr_read(CSR_VSIE);
+		/* Sync-up HVIP.VSSIP bit changes does by Guest. */
+		hvip = nacl_csr_read(CSR_HVIP);
+	}
 
-	/*
-	 * Sync-up HVIP.VSSIP bit changes does by Guest. For TVMs,
-	 * the HVIP is not updated by the TSM. Expect it to be zero.
-	 */
-	hvip = nacl_csr_read(CSR_HVIP);
 	if ((csr->hvip ^ hvip) & (1UL << IRQ_VS_SOFT)) {
 		if (hvip & (1UL << IRQ_VS_SOFT)) {
 			if (!test_and_set_bit(IRQ_VS_SOFT,
@@ -992,12 +998,12 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	u64 henvcfg = kvm_riscv_vcpu_get_henvcfg(vcpu->arch.isa);
 	struct kvm_vcpu_csr *csr = &vcpu->arch.guest_csr;
 
-	if (is_cove_vcpu(vcpu)) {
+	if (is_cove_vm_finalized(vcpu->kvm)) {
 		kvm_riscv_cove_vcpu_load(vcpu);
 		goto skip_load;
 	}
 
-	if (kvm_riscv_nacl_sync_csr_available()) {
+	if (kvm_riscv_nacl_sync_csr_available() || is_cove_vm_single_step_initializing(vcpu->kvm)) {
 		nshmem = nacl_shmem();
 		nacl_shmem_csr_write(nshmem, CSR_VSSTATUS, csr->vsstatus);
 		nacl_shmem_csr_write(nshmem, CSR_VSIE, csr->vsie);
@@ -1048,7 +1054,7 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 
 	vcpu->cpu = -1;
 
-	if (is_cove_vcpu(vcpu)) {
+	if (is_cove_vm_finalized(vcpu->kvm) || is_cove_vm_multi_step_initializing(vcpu->kvm)) {
 		kvm_riscv_cove_vcpu_put(vcpu);
 		return;
 	}
@@ -1061,7 +1067,7 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 
 	kvm_riscv_vcpu_timer_save(vcpu);
 
-	if (kvm_riscv_nacl_available()) {
+	if (kvm_riscv_nacl_sync_csr_available() || is_cove_vm_single_step_initializing(vcpu->kvm)) {
 		/**
 		 * For TVMs, we don't need a separate case as TSM only updates
 		 * the required CSRs during the world switch. All other CSR
@@ -1114,12 +1120,14 @@ static void kvm_riscv_check_vcpu_requests(struct kvm_vcpu *vcpu)
 		if (kvm_check_request(KVM_REQ_VCPU_RESET, vcpu))
 			kvm_riscv_reset_vcpu(vcpu);
 
-		if (is_cove_vcpu(vcpu)) {
+		if (is_cove_vm_finalized(vcpu->kvm)) {
 			/*
 			 * KVM doesn't need to do anything special here
 			 * as the TSM is expected track the tlb version and issue
 			 * hfence when vcpu is scheduled again.
 			 */
+			kvm_clear_request(KVM_REQ_HFENCE_GVMA_VMID_ALL, vcpu);
+			kvm_clear_request(KVM_REQ_HFENCE, vcpu);
 			return;
 		}
 
@@ -1325,8 +1333,11 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 		 */
 		kvm_riscv_vcpu_flush_interrupts(vcpu);
 
-		/* Update HVIP CSR for current CPU only for non TVMs */
-		if (!is_cove_vcpu(vcpu))
+		/*
+		 * Do not update HVIP CSR for TVMs with AIA because AIA
+		 * provides alternative method to inject interrupts.
+		*/
+		if (!is_cove_vcpu(vcpu) || !kvm_riscv_cove_capability(KVM_COVE_TSM_CAP_AIA))
 			kvm_riscv_update_hvip(vcpu);
 
 		if (ret <= 0 ||

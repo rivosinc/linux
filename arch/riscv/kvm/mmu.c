@@ -359,7 +359,7 @@ int kvm_riscv_gstage_ioremap(struct kvm *kvm, gpa_t gpa,
 		.gfp_zero = __GFP_ZERO,
 	};
 
-	if (is_cove_vm(kvm)) {
+	if (is_cove_vm_finalized(kvm) || is_cove_vm_multi_step_initializing(kvm)) {
 		kvm_debug("%s: KVM doesn't support ioremap for TVM io regions\n", __func__);
 		return -EPERM;
 	}
@@ -394,7 +394,7 @@ out:
 void kvm_riscv_gstage_iounmap(struct kvm *kvm, gpa_t gpa, unsigned long size)
 {
 	/* KVM doesn't map any IO region in gstage for TVM */
-	if (is_cove_vm(kvm))
+	if (is_cove_vm_finalized(kvm) || is_cove_vm_multi_step_initializing(kvm))
 		return;
 
 	spin_lock(&kvm->mmu_lock);
@@ -444,7 +444,7 @@ void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
 	phys_addr_t size = slot->npages << PAGE_SHIFT;
 
 	/* No need to unmap gstage as it is managed by TSM */
-	if (is_cove_vm(kvm))
+	if (is_cove_vm_finalized(kvm) || is_cove_vm_multi_step_initializing(kvm))
 		return;
 
 	spin_lock(&kvm->mmu_lock);
@@ -458,7 +458,7 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 				enum kvm_mr_change change)
 {
 	/* We don't support dirty logging for CoVE guests yet */
-	if (is_cove_vm(kvm))
+	if (is_cove_vm_finalized(kvm) || is_cove_vm_multi_step_initializing(kvm))
 		return;
 	/*
 	 * At this point memslot has been committed and there is an
@@ -499,7 +499,7 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 
 	mmap_read_lock(current->mm);
 
-	if (is_cove_vm(kvm)) {
+	if (is_cove_vm_multi_step_initializing(kvm)) {
 		ret = kvm_riscv_cove_vm_add_memreg(kvm, base_gpa, size);
 		if (ret)
 			return ret;
@@ -571,7 +571,7 @@ out:
 
 bool kvm_unmap_gfn_range(struct kvm *kvm, struct kvm_gfn_range *range)
 {
-	if (!kvm->arch.pgd || is_cove_vm(kvm))
+	if (!kvm->arch.pgd || is_cove_vm_finalized(kvm) || is_cove_vm_multi_step_initializing(kvm))
 		return false;
 
 	gstage_unmap_range(kvm, range->start << PAGE_SHIFT,
@@ -585,7 +585,7 @@ bool kvm_set_spte_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
 	int ret;
 	kvm_pfn_t pfn = pte_pfn(range->pte);
 
-	if (!kvm->arch.pgd || is_cove_vm(kvm))
+	if (!kvm->arch.pgd || is_cove_vm_finalized(kvm) || is_cove_vm_multi_step_initializing(kvm))
 		return false;
 
 	WARN_ON(range->end - range->start != 1);
@@ -606,7 +606,7 @@ bool kvm_age_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
 	u32 ptep_level = 0;
 	u64 size = (range->end - range->start) << PAGE_SHIFT;
 
-	if (!kvm->arch.pgd || is_cove_vm(kvm))
+	if (!kvm->arch.pgd || is_cove_vm_finalized(kvm) || is_cove_vm_multi_step_initializing(kvm))
 		return false;
 
 	WARN_ON(size != PAGE_SIZE && size != PMD_SIZE && size != PUD_SIZE);
@@ -624,7 +624,7 @@ bool kvm_test_age_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
 	u32 ptep_level = 0;
 	u64 size = (range->end - range->start) << PAGE_SHIFT;
 
-	if (!kvm->arch.pgd || is_cove_vm(kvm))
+	if (!kvm->arch.pgd || is_cove_vm_finalized(kvm) || is_cove_vm_multi_step_initializing(kvm))
 		return false;
 
 	WARN_ON(size != PAGE_SIZE && size != PMD_SIZE && size != PUD_SIZE);
@@ -762,7 +762,7 @@ void kvm_riscv_gstage_free_pgd(struct kvm *kvm)
 	void *pgd = NULL;
 
 	/* PGD is mapped in TSM */
-	if (is_cove_vm(kvm))
+	if (is_cove_vm_finalized(kvm) || is_cove_vm_multi_step_initializing(kvm))
 		return;
 
 	spin_lock(&kvm->mmu_lock);
@@ -784,7 +784,7 @@ void kvm_riscv_gstage_update_hgatp(struct kvm_vcpu *vcpu)
 	struct kvm_arch *k = &vcpu->kvm->arch;
 
 	/* COVE VCPU hgatp is managed by TSM. */
-	if (is_cove_vcpu(vcpu))
+	if (is_cove_vm_finalized(vcpu->kvm))
 		return;
 
 	hgatp |= (READ_ONCE(k->vmid.vmid) << HGATP_VMID_SHIFT) & HGATP_VMID;

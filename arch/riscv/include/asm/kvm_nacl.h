@@ -205,7 +205,7 @@ do {								\
 #define nacl_csr_read(__c)					\
 ({								\
 	unsigned long __r;					\
-	if (kvm_riscv_nacl_available())				\
+	if (kvm_riscv_nacl_sync_csr_available())				\
 		__r = nacl_shmem_csr_read(nacl_shmem(), __c);	\
 	else							\
 		__r = csr_read(__c);				\

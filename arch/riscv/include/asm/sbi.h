@@ -360,6 +360,7 @@ enum sbi_ext_covh_fid {
 	SBI_EXT_COVH_TSM_LOCAL_FENCE,
 	SBI_EXT_COVH_CREATE_TVM,
 	SBI_EXT_COVH_FINALIZE_TVM,
+	SBI_EXT_COVH_PROMOTE_TO_TVM,
 	SBI_EXT_COVH_DESTROY_TVM,
 	SBI_EXT_COVH_TVM_ADD_MEMORY_REGION,
 	SBI_EXT_COVH_TVM_ADD_PGT_PAGES,
@@ -410,8 +411,14 @@ struct sbi_cove_tsm_info {
 	/* Current state of the TSM */
 	enum sbi_cove_tsm_state tstate;
 
+	/* TSM implementation identifier */
+	uint32_t impl_id;
+
 	/* Version of the loaded TSM */
 	uint32_t version;
+
+	/* Capabilities of the TSM */
+	unsigned long capabilities;
 
 	/* Number of 4K pages required per TVM */
 	unsigned long tvm_pages_needed;

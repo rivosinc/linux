@@ -41,7 +41,7 @@ static int gstage_page_fault(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		};
 	}
 
-	if (is_cove_vcpu(vcpu)) {
+	if (is_cove_vm_finalized(vcpu->kvm)) {
 		/* CoVE doesn't care about PTE prots now. No need to compute the prots */
 		ret = kvm_riscv_cove_handle_pagefault(vcpu, fault_addr, hva);
 	} else {
@@ -143,7 +143,7 @@ void kvm_riscv_vcpu_trap_redirect(struct kvm_vcpu *vcpu,
 {
 	unsigned long vsstatus;
 
-	if (is_cove_vcpu(vcpu)) {
+	if (is_cove_vm_finalized(vcpu->kvm)) {
 		kvm_err("RISC-V KVM do not support redirect to CoVE guest yet\n");
 		return;
 	}
@@ -213,13 +213,13 @@ int kvm_riscv_vcpu_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 			ret = gstage_page_fault(vcpu, run, trap);
 		break;
 	case EXC_SUPERVISOR_SYSCALL:
-		if (is_cove_vcpu(vcpu))
+		if (is_cove_vm_finalized(vcpu->kvm))
 			ret = kvm_riscv_cove_vcpu_sbi_ecall(vcpu, run);
 		else if (vcpu->arch.guest_context.hstatus & HSTATUS_SPV)
 			ret = kvm_riscv_vcpu_sbi_ecall(vcpu, run);
 		break;
 	case EXC_CUSTOM_KVM_COVE_RUN_FAIL:
-		if (likely(is_cove_vcpu(vcpu))) {
+		if (likely(is_cove_vm_finalized(vcpu->kvm))) {
 			ret = -EACCES;
 			run->fail_entry.hardware_entry_failure_reason =
 				KVM_EXIT_FAIL_ENTRY_COVE_RUN_VCPU;

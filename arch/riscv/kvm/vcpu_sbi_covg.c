@@ -55,7 +55,7 @@ err:
 }
 
 static int cove_share_page(struct kvm_vcpu *vcpu, gpa_t gpa,
-			   unsigned long *sbi_err)
+			   struct kvm_vcpu_sbi_return *retdata)
 {
 	unsigned long hva = gfn_to_hva(vcpu->kvm, gpa >> PAGE_SHIFT);
 	struct kvm_cove_tvm_context *tvmc = vcpu->kvm->arch.tvmc;
@@ -66,7 +66,7 @@ static int cove_share_page(struct kvm_vcpu *vcpu, gpa_t gpa,
 
 	if (kvm_is_error_hva(hva)) {
 		/* Address is out of the guest ram memory region. */
-		*sbi_err = SBI_ERR_INVALID_PARAM;
+		retdata->err_val = SBI_ERR_INVALID_PARAM;
 		return 0;
 	}
 
@@ -95,6 +95,7 @@ static int cove_share_page(struct kvm_vcpu *vcpu, gpa_t gpa,
 	list_add(&tpage->link, &tvmc->shared_pages);
 	spin_unlock(&vcpu->kvm->mmu_lock);
 
+	retdata->out_val = page_to_phys(tpage->page);
 	return 0;
 
 free_tpage:
@@ -104,7 +105,7 @@ free_tpage:
 }
 
 static int kvm_riscv_cove_share_page(struct kvm_vcpu *vcpu, gpa_t gpa,
-				     unsigned long *sbi_err)
+				     struct kvm_vcpu_sbi_return *retdata)
 {
 	struct kvm_cove_tvm_context *tvmc = vcpu->kvm->arch.tvmc;
 	struct kvm_riscv_cove_page *tpage, *next;
@@ -129,7 +130,7 @@ static int kvm_riscv_cove_share_page(struct kvm_vcpu *vcpu, gpa_t gpa,
 	if (converted)
 		return cove_share_converted_page(vcpu, gpa, tpage);
 
-	return cove_share_page(vcpu, gpa, sbi_err);
+	return cove_share_page(vcpu, gpa, retdata);
 }
 
 static int kvm_riscv_cove_unshare_page(struct kvm_vcpu *vcpu, gpa_t gpa)
@@ -189,7 +190,7 @@ static int kvm_sbi_ext_covg_handler(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	case SBI_EXT_COVG_SHARE_MEMORY:
 		for (i = 0; i < num_pages; i++) {
 			ret = kvm_riscv_cove_share_page(
-				vcpu, cp->a0 + i * PAGE_SIZE, err_val);
+				vcpu, cp->a0 + i * PAGE_SIZE, retdata);
 			if (ret || *err_val != SBI_SUCCESS)
 				return ret;
 		}

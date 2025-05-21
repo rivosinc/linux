@@ -58,7 +58,7 @@ int kvm_riscv_gstage_vmid_init(struct kvm *kvm)
 bool kvm_riscv_gstage_vmid_ver_changed(struct kvm *kvm)
 {
 	/* VMID version can't be changed by the host for TVMs */
-	if (!vmid_bits || is_cove_vm(kvm))
+	if (!vmid_bits || is_cove_vm_finalized(kvm) || is_cove_vm_multi_step_initializing(kvm))
 		return false;
 
 	return unlikely(READ_ONCE(kvm->arch.vmid.vmid_version) !=
@@ -78,7 +78,7 @@ void kvm_riscv_gstage_vmid_update(struct kvm_vcpu *vcpu)
 	struct kvm_vmid *vmid = &vcpu->kvm->arch.vmid;
 
 	/* No VMID management for TVMs by the host */
-	if (is_cove_vcpu(vcpu))
+	if (is_cove_vm_finalized(vcpu->kvm) || is_cove_vm_multi_step_initializing(vcpu->kvm))
 		return;
 
 	if (!kvm_riscv_gstage_vmid_ver_changed(kvm))
@@ -124,6 +124,9 @@ void kvm_riscv_gstage_vmid_update(struct kvm_vcpu *vcpu)
 	WRITE_ONCE(vmid->vmid_version, READ_ONCE(vmid_version));
 
 	spin_unlock(&vmid_lock);
+
+	if (is_cove_vm_single_step_initializing(vcpu->kvm))
+		return;
 
 	/* Request G-stage page table update for all VCPUs */
 	kvm_for_each_vcpu(i, v, vcpu->kvm)

@@ -919,7 +919,9 @@ struct kvm_ppc_resize_hpt {
  * RISCV-V Confidential VM type. The large bit shift is chosen on purpose
  * to allow other architectures to have their specific VM types if required.
  */
-#define KVM_VM_TYPE_RISCV_COVE	(1UL << 9)
+#define KVM_VM_TYPE_RISCV_COVE_MULTI_STEP_INIT	(1UL << 9)
+#define KVM_VM_TYPE_RISCV_COVE_SINGLE_STEP_INIT	(1UL << 10)
+
 /*
  * ioctls for /dev/kvm fds:
  */
@@ -1553,6 +1555,7 @@ struct kvm_s390_ucas_mapping {
 #define KVM_ARM_MTE_COPY_TAGS	  _IOR(KVMIO,  0xb4, struct kvm_arm_copy_mte_tags)
 
 #define KVM_RISCV_COVE_MEASURE_REGION  _IOR(KVMIO, 0xb5, struct kvm_riscv_cove_measure_region)
+#define KVM_RISCV_COVE_PRELOAD_REGIONS _IOR(KVMIO, 0xb6, struct kvm_riscv_cove_preload_regions)
 
 /* ioctl for vm fd */
 #define KVM_CREATE_DEVICE	  _IOWR(KVMIO,  0xe0, struct kvm_create_device)

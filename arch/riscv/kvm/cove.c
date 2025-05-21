@@ -134,6 +134,10 @@ static int cove_convert_pages(unsigned long phys_addr, unsigned long npages, boo
 	if (!IS_ALIGNED(phys_addr, PAGE_SIZE))
 		return -EINVAL;
 
+	if (!kvm_riscv_cove_capability(KVM_COVE_TSM_CAP_MEMORY_ALLOCATION)) {
+		return -EOPNOTSUPP;
+	}
+
 	rc = sbi_covh_tsm_convert_pages(phys_addr, npages);
 	if (rc)
 		return rc;
@@ -148,6 +152,11 @@ static int cove_convert_pages(unsigned long phys_addr, unsigned long npages, boo
 __always_inline bool kvm_riscv_cove_enabled(void)
 {
 	return riscv_cove_enabled;
+}
+
+__always_inline bool kvm_riscv_cove_capability(unsigned long cap)
+{
+	return tinfo.capabilities & BIT(cap);
 }
 
 static void kvm_cove_imsic_clone(void *info)
@@ -560,15 +569,50 @@ int kvm_riscv_cove_handle_pagefault(struct kvm_vcpu *vcpu, gpa_t gpa,
 	return kvm_riscv_cove_gstage_map(vcpu, gpa, hva);
 }
 
+int kvm_riscv_cove_preload_measured_regions(struct kvm *kvm) {
+	struct kvm_cove_tvm_context *tvmc = kvm->arch.tvmc;
+	struct kvm_riscv_cove_page *cpage, *temp;
+	struct kvm_vcpu *target_vcpu, *boot_vcpu;
+        struct kvm_memory_slot *memslot;
+	unsigned long target_vcpuid;
+	unsigned long hva, gpa;
+	int i;
+
+	if (!tvmc)
+		return -EFAULT;
+
+	kvm_for_each_vcpu(target_vcpuid, target_vcpu, kvm) {
+		if (target_vcpu->vcpu_idx == 0) {
+			boot_vcpu = target_vcpu;
+			break;
+		}
+	}
+
+	if (!boot_vcpu)
+		return -EFAULT;
+
+	list_for_each_entry_safe(cpage, temp, &tvmc->measured_pages, link) {
+		for (i=0; i<cpage->npages; i++) {
+			gpa = cpage->gpa + i * PAGE_SIZE;
+			memslot = gfn_to_memslot(boot_vcpu->kvm, gpa_to_gfn(gpa));
+			hva = gfn_to_hva_memslot_prot(memslot, gpa_to_gfn(gpa), NULL);
+			if (!kvm_is_error_hva(hva))
+				kvm_riscv_gstage_map(boot_vcpu, memslot, gpa, hva, NULL);
+		}
+	}
+
+       return 0;
+}
+
 void noinstr kvm_riscv_cove_vcpu_switchto(struct kvm_vcpu *vcpu, struct kvm_cpu_trap *trap)
 {
-	int rc;
-	struct kvm *kvm = vcpu->kvm;
-	struct kvm_cove_tvm_context *tvmc;
 	struct kvm_cpu_context *cntx = &vcpu->arch.guest_context;
-	void *nshmem;
-	struct kvm_guest_timer *gt = &kvm->arch.timer;
 	struct kvm_cove_tvm_vcpu_context *tvcpuc = vcpu->arch.tc;
+	struct kvm_guest_timer *gt = &vcpu->kvm->arch.timer;
+	struct kvm_cove_tvm_context *tvmc;
+	struct kvm *kvm = vcpu->kvm;
+	void *nshmem;
+	int rc;
 
 	if (!kvm->arch.tvmc)
 		return;
@@ -578,8 +622,14 @@ void noinstr kvm_riscv_cove_vcpu_switchto(struct kvm_vcpu *vcpu, struct kvm_cpu_
 	nshmem = nacl_shmem();
 	/* Invoke finalize to mark TVM is ready run for the first time */
 	if (unlikely(!tvmc->finalized_done)) {
-
-		rc = sbi_covh_tsm_finalize_tvm(tvmc->tvm_guest_id, cntx->sepc, cntx->a1);
+		if (is_cove_vm_multi_step_initializing(vcpu->kvm)) {
+			rc = sbi_covh_tsm_finalize_tvm(tvmc->tvm_guest_id, cntx->sepc, cntx->a1);
+		} else if (is_cove_vm_single_step_initializing(vcpu->kvm)) {
+			rc = sbi_covh_tsm_promote_to_tvm(cntx->a1, tvmc->cove_tap_addr, cntx->sepc,
+							 &tvmc->tvm_guest_id);
+		} else {
+			rc = -EOPNOTSUPP;
+		}
 		if (rc) {
 			kvm_err("TVM Finalized failed with %d\n", rc);
 			return;
@@ -589,9 +639,9 @@ void noinstr kvm_riscv_cove_vcpu_switchto(struct kvm_vcpu *vcpu, struct kvm_cpu_
 
 	/*
 	 * Bind the vsfile here instead during the new vsfile allocation because
-	 * COVH bind call requires the TVM to be in finalized state.
+	 * COVI bind call requires the TVM to be in finalized state.
 	 */
-	if (tvcpuc->imsic.bind_required) {
+	if (kvm_riscv_cove_capability(KVM_COVE_TSM_CAP_AIA) && tvcpuc->imsic.bind_required) {
 		tvcpuc->imsic.bind_required = false;
 		rc = kvm_riscv_cove_vcpu_imsic_bind(vcpu, BIT(tvcpuc->imsic.vsfile_hgei));
 		if (rc) {
@@ -619,21 +669,27 @@ void kvm_riscv_cove_vcpu_destroy(struct kvm_vcpu *vcpu)
 	struct kvm_cove_tvm_vcpu_context *tvcpuc = vcpu->arch.tc;
 	struct kvm *kvm = vcpu->kvm;
 
+	if (tvcpuc == NULL)
+		return;
+
 	/*
 	 * Just add the vcpu state pages to a list at this point as these can not
 	 * be claimed until tvm is destroyed. *
 	 */
 	list_add(&tvcpuc->vcpu_state.link, &kvm->arch.tvmc->reclaim_pending_pages);
+
+	vcpu->arch.tc = NULL;
+	kfree(tvcpuc);
 }
 
 int kvm_riscv_cove_vcpu_init(struct kvm_vcpu *vcpu)
 {
-	int rc;
-	struct kvm *kvm;
 	struct kvm_cove_tvm_vcpu_context *tvcpuc;
 	struct kvm_cove_tvm_context *tvmc;
-	struct page *vcpus_page;
 	unsigned long vcpus_phys_addr;
+	struct page *vcpus_page;
+	struct kvm *kvm;
+	int rc;
 
 	if (!vcpu)
 		return -EINVAL;
@@ -654,6 +710,14 @@ int kvm_riscv_cove_vcpu_init(struct kvm_vcpu *vcpu)
 	if (!tvcpuc)
 		return -ENOMEM;
 
+	tvcpuc->vcpu = vcpu;
+	tvcpuc->vcpu_state.npages = tinfo.tvcpu_pages_needed;
+	vcpu->arch.tc = tvcpuc;
+
+	if (!is_cove_vm_multi_step_initializing(vcpu->kvm)) {
+		return 0;
+	}
+
 	vcpus_page = alloc_pages(GFP_KERNEL | __GFP_ZERO,
 				 get_order_num_pages(tinfo.tvcpu_pages_needed));
 	if (!vcpus_page) {
@@ -661,8 +725,6 @@ int kvm_riscv_cove_vcpu_init(struct kvm_vcpu *vcpu)
 		goto alloc_page_failed;
 	}
 
-	tvcpuc->vcpu = vcpu;
-	tvcpuc->vcpu_state.npages = tinfo.tvcpu_pages_needed;
 	tvcpuc->vcpu_state.page = vcpus_page;
 	vcpus_phys_addr = page_to_phys(vcpus_page);
 
@@ -674,8 +736,6 @@ int kvm_riscv_cove_vcpu_init(struct kvm_vcpu *vcpu)
 	if (rc)
 		goto vcpu_create_failed;
 
-	vcpu->arch.tc = tvcpuc;
-
 	return 0;
 
 vcpu_create_failed:
@@ -686,6 +746,7 @@ convert_failed:
 	__free_pages(vcpus_page, get_order_num_pages(tinfo.tvcpu_pages_needed));
 
 alloc_page_failed:
+	vcpu->arch.tc = NULL;
 	kfree(tvcpuc);
 	return rc;
 }
@@ -706,7 +767,26 @@ int kvm_riscv_cove_vm_measure_pages(struct kvm *kvm, struct kvm_riscv_cove_measu
 		return -EINVAL;
 	}
 
+	if (mr->type == KVM_RISCV_COVE_REGION_COVE_TAP)
+		tvmc->cove_tap_addr = mr->gpa;
+
 	num_pages = bytes_to_pages(mr->size);
+
+	if (is_cove_vm_single_step_initializing(kvm)) {
+		cpage = kmalloc(sizeof(*cpage), GFP_KERNEL_ACCOUNT);
+		if (!cpage) {
+			return -ENOMEM;
+		}
+		cpage->npages = num_pages;
+		cpage->gpa = mr->gpa;
+		cpage->hva = mr->userspace_addr;
+		cpage->is_mapped = false;
+		INIT_LIST_HEAD(&cpage->link);
+		list_add(&cpage->link, &tvmc->measured_pages);
+
+		return 0;
+	}
+
 	conf = &tvmc->confidential_region;
 
 	if (!IS_ALIGNED(mr->userspace_addr, PAGE_SIZE) ||
@@ -849,6 +929,9 @@ void kvm_riscv_cove_vm_destroy(struct kvm *kvm)
 	cove_delete_page_list(kvm, &tvmc->zero_pages, true);
 	cove_delete_shared_pinned_page_list(kvm, &tvmc->shared_pages);
 
+	if (!kvm_riscv_cove_capability(KVM_COVE_TSM_CAP_MEMORY_ALLOCATION))
+		goto deallocate_tvmc;
+
 	/* Reclaim and Free the pages for tvm state management */
 	rc = sbi_covh_tsm_reclaim_pages(page_to_phys(tvmc->tvm_state.page), tvmc->tvm_state.npages);
 	if (rc)
@@ -869,21 +952,47 @@ void kvm_riscv_cove_vm_destroy(struct kvm *kvm)
 	if (rc)
 		goto reclaim_failed;
 
+deallocate_tvmc:
 	kfree(tvmc);
-
 	return;
 
 reclaim_failed:
 	kvm_err("Memory reclaim failed with rc %d\n", rc);
 }
 
-int kvm_riscv_cove_vm_init(struct kvm *kvm)
+int kvm_riscv_cove_vm_single_step_init(struct kvm *kvm)
 {
 	struct kvm_cove_tvm_context *tvmc;
-	struct page *tvms_page, *pgt_page;
-	unsigned long tvm_gid, pgt_phys_addr, tvms_phys_addr;
+
+	if (!kvm_riscv_cove_capability(KVM_COVE_TSM_CAP_PROMOTE_TVM))
+		return -EOPNOTSUPP;
+
+	tvmc = kzalloc(sizeof(*tvmc), GFP_KERNEL);
+	if (!tvmc)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&tvmc->measured_pages);
+	INIT_LIST_HEAD(&tvmc->zero_pages);
+	INIT_LIST_HEAD(&tvmc->shared_pages);
+	INIT_LIST_HEAD(&tvmc->reclaim_pending_pages);
+
+	tvmc->kvm = kvm;
+	kvm->arch.tvmc = tvmc;
+	kvm->arch.vm_type = KVM_VM_TYPE_RISCV_COVE_SINGLE_STEP_INIT;
+	return 0;
+}
+
+int kvm_riscv_cove_vm_multi_step_init(struct kvm *kvm)
+{
 	unsigned long gstage_pgd_size = kvm_riscv_gstage_pgd_size();
+	unsigned long tvm_gid, pgt_phys_addr, tvms_phys_addr;
+	struct kvm_cove_tvm_context *tvmc;
+	struct page *tvms_page, *pgt_page;
 	int rc = 0;
+
+	// Multi-step TVM creation requires TSM that supports dynamic page conversion
+	if (!kvm_riscv_cove_capability(KVM_COVE_TSM_CAP_MEMORY_ALLOCATION))
+		return -EOPNOTSUPP;
 
 	tvmc = kzalloc(sizeof(*tvmc), GFP_KERNEL);
 	if (!tvmc)
@@ -955,6 +1064,7 @@ int kvm_riscv_cove_vm_init(struct kvm *kvm)
 		goto tvm_init_failed;
 
 	tvmc->kvm = kvm;
+	kvm->arch.vm_type = KVM_VM_TYPE_RISCV_COVE_MULTI_STEP_INIT;
 	kvm_info("Guest VM creation successful with guest id %lx\n", tvm_gid);
 
 	return 0;

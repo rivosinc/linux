@@ -25,25 +25,42 @@ bool force_dma_unencrypted(struct device *dev)
 
 int set_memory_encrypted(unsigned long addr, int numpages)
 {
+	int i, rc;
+
 	if (!cc_platform_has(CC_ATTR_MEM_ENCRYPT))
 		return 0;
 
 	if (!PAGE_ALIGNED(addr))
 		return -EINVAL;
 
-	return sbi_covg_unshare_memory(__pa(addr), numpages * PAGE_SIZE);
+	rc = sbi_covg_unshare_memory(__pa(addr), numpages * PAGE_SIZE);
+	if (rc) {
+		rc = 0;
+		for (i = 0; i < numpages && rc == 0; i++)
+			rc = sbi_covg_unshare_memory(__pa(addr + i * PAGE_SIZE), PAGE_SIZE);
+	}
+	return rc;
 }
 EXPORT_SYMBOL_GPL(set_memory_encrypted);
 
 int set_memory_decrypted(unsigned long addr, int numpages)
 {
+	int i, rc;
+
 	if (!cc_platform_has(CC_ATTR_MEM_ENCRYPT))
 		return 0;
 
 	if (!PAGE_ALIGNED(addr))
 		return -EINVAL;
 
-	return sbi_covg_share_memory(__pa(addr), numpages * PAGE_SIZE);
+	rc = sbi_covg_share_memory(__pa(addr), numpages * PAGE_SIZE);
+	if (rc) {
+		rc = 0;
+		/* Try page by page if TSM cannot share all pages at once */
+		for (i = 0; i < numpages && rc == 0; i++)
+			rc = sbi_covg_share_memory(__pa(addr + i * PAGE_SIZE), PAGE_SIZE);
+	}
+	return rc;
 }
 EXPORT_SYMBOL_GPL(set_memory_decrypted);
 

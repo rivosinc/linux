@@ -73,7 +73,7 @@ static int kvm_riscv_vcpu_timer_cancel(struct kvm_vcpu_timer *t)
 static int kvm_riscv_vcpu_update_vstimecmp(struct kvm_vcpu *vcpu, u64 ncycles)
 {
 	/* Host is not allowed to update the vstimecmp for the TVM */
-	if (is_cove_vcpu(vcpu))
+	if (is_cove_vm_finalized(vcpu->kvm))
 		return 0;
 
 #if defined(CONFIG_32BIT)
@@ -229,7 +229,7 @@ int kvm_riscv_vcpu_set_reg_timer(struct kvm_vcpu *vcpu,
 		/* For trusted VMs we can not update htimedelta. We can just
 		 * read it from shared memory.
 		 */
-		if (is_cove_vcpu(vcpu))
+		if (is_cove_vm_finalized(vcpu->kvm))
 			return -EOPNOTSUPP;
 		gt->time_delta = reg_val - get_cycles64();
 		break;
@@ -311,7 +311,7 @@ void kvm_riscv_vcpu_timer_restore(struct kvm_vcpu *vcpu)
 	struct kvm_vcpu_timer *t = &vcpu->arch.timer;
 
 	/* While in CoVE, HOST must not manage HTIMEDELTA or VSTIMECMP for TVM */
-	if (is_cove_vcpu(vcpu))
+	if (is_cove_vm_finalized(vcpu->kvm))
 		goto skip_hcsr_update;
 
 	kvm_riscv_vcpu_update_timedelta(vcpu);
@@ -342,10 +342,18 @@ void kvm_riscv_vcpu_timer_sync(struct kvm_vcpu *vcpu)
 		return;
 
 #if defined(CONFIG_32BIT)
-	t->next_cycles = nacl_csr_read(CSR_VSTIMECMP);
-	t->next_cycles |= (u64)nacl_csr_read(CSR_VSTIMECMPH) << 32;
+	if (is_cove_vm_finalized(vcpu->kvm)) {
+		t->next_cycles = nacl_shmem_csr_read(nacl_shmem(), CSR_VSTIMECMP);
+		t->next_cycles |= (u64)nacl_shmem_csr_read(nacl_shmem(), CSR_VSTIMECMPH) << 32;
+	} else {
+		t->next_cycles = nacl_csr_read(CSR_VSTIMECMP);
+		t->next_cycles |= (u64)nacl_csr_read(CSR_VSTIMECMPH) << 32;
+	}
 #else
-	t->next_cycles = nacl_csr_read(CSR_VSTIMECMP);
+	if (is_cove_vm_finalized(vcpu->kvm))
+		t->next_cycles = nacl_shmem_csr_read(nacl_shmem(), CSR_VSTIMECMP);
+	else
+		t->next_cycles = nacl_csr_read(CSR_VSTIMECMP);
 #endif
 }
 
@@ -374,7 +382,7 @@ void kvm_riscv_guest_timer_init(struct kvm *kvm)
 	struct kvm_guest_timer *gt = &kvm->arch.timer;
 
 	riscv_cs_get_mult_shift(&gt->nsec_mult, &gt->nsec_shift);
-	if (is_cove_vm(kvm)) {
+	if (is_cove_vm_finalized(kvm)) {
 		/* For TVMs htimedelta is managed by TSM and it's communicated using
 		 * NACL shmem interface when first time VCPU is run. so we read it in
 		 * kvm_riscv_cove_vcpu_switchto() where we enter VCPUs.

@@ -169,7 +169,7 @@ void kvm_riscv_local_tlb_sanitize(struct kvm_vcpu *vcpu)
 {
 	unsigned long vmid;
 
-	if (is_cove_vcpu(vcpu) || !kvm_riscv_gstage_vmid_bits() ||
+	if (is_cove_vm(vcpu->kvm) || !kvm_riscv_gstage_vmid_bits() ||
 	    vcpu->arch.last_exit_cpu == vcpu->cpu)
 		return;
 
@@ -199,7 +199,7 @@ void kvm_riscv_hfence_gvma_vmid_all_process(struct kvm_vcpu *vcpu)
 	struct kvm_vmid *v = &vcpu->kvm->arch.vmid;
 	unsigned long vmid = READ_ONCE(v->vmid);
 
-	if (kvm_riscv_nacl_available())
+	if (kvm_riscv_nacl_sync_hfence_available())
 		nacl_shmem_hfence_gvma_vmid_all(nacl_shmem(), vmid);
 	else
 		kvm_riscv_local_hfence_gvma_vmid_all(vmid);
@@ -210,7 +210,7 @@ void kvm_riscv_hfence_vvma_all_process(struct kvm_vcpu *vcpu)
 	struct kvm_vmid *v = &vcpu->kvm->arch.vmid;
 	unsigned long vmid = READ_ONCE(v->vmid);
 
-	if (kvm_riscv_nacl_available())
+	if (kvm_riscv_nacl_sync_hfence_available())
 		nacl_shmem_hfence_vvma_all(nacl_shmem(), vmid);
 	else
 		kvm_riscv_local_hfence_vvma_all(vmid);
@@ -277,7 +277,7 @@ void kvm_riscv_hfence_process(struct kvm_vcpu *vcpu)
 			break;
 		case KVM_RISCV_HFENCE_GVMA_VMID_GPA:
 			vmid = READ_ONCE(v->vmid);
-			if (kvm_riscv_nacl_available())
+			if (kvm_riscv_nacl_sync_hfence_available())
 				nacl_shmem_hfence_gvma_vmid(
 						nacl_shmem(), vmid,
 						d.addr, d.size, d.order);
@@ -288,7 +288,7 @@ void kvm_riscv_hfence_process(struct kvm_vcpu *vcpu)
 		case KVM_RISCV_HFENCE_VVMA_ASID_GVA:
 			kvm_riscv_vcpu_pmu_incr_fw(vcpu, SBI_PMU_FW_HFENCE_VVMA_ASID_RCVD);
 			vmid = READ_ONCE(v->vmid);
-			if (kvm_riscv_nacl_available())
+			if (kvm_riscv_nacl_sync_hfence_available())
 				nacl_shmem_hfence_vvma_asid(
 						nacl_shmem(), vmid, d.asid,
 						d.addr, d.size, d.order);
@@ -300,7 +300,7 @@ void kvm_riscv_hfence_process(struct kvm_vcpu *vcpu)
 		case KVM_RISCV_HFENCE_VVMA_ASID_ALL:
 			kvm_riscv_vcpu_pmu_incr_fw(vcpu, SBI_PMU_FW_HFENCE_VVMA_ASID_RCVD);
 			vmid = READ_ONCE(v->vmid);
-			if (kvm_riscv_nacl_available())
+			if (kvm_riscv_nacl_sync_hfence_available())
 				nacl_shmem_hfence_vvma_asid_all(
 						nacl_shmem(), vmid, d.asid);
 			else
@@ -310,7 +310,7 @@ void kvm_riscv_hfence_process(struct kvm_vcpu *vcpu)
 		case KVM_RISCV_HFENCE_VVMA_GVA:
 			kvm_riscv_vcpu_pmu_incr_fw(vcpu, SBI_PMU_FW_HFENCE_VVMA_RCVD);
 			vmid = READ_ONCE(v->vmid);
-			if (kvm_riscv_nacl_available())
+			if (kvm_riscv_nacl_sync_hfence_available())
 				nacl_shmem_hfence_vvma(nacl_shmem(), vmid,
 						d.addr, d.size, d.order);
 			else
