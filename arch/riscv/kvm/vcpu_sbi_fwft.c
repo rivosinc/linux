@@ -6,6 +6,7 @@
  *     Clément Léger <cleger@rivosinc.com>
  */
 
+#include <linux/riscv_double_trap.h>
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/kvm_host.h>
@@ -103,12 +104,52 @@ static long kvm_sbi_fwft_get_misaligned_delegation(struct kvm_vcpu *vcpu,
 	return SBI_SUCCESS;
 }
 
+
+static bool kvm_sbi_fwft_double_trap_supported(struct kvm_vcpu *vcpu)
+{
+	return riscv_double_trap_enabled();
+}
+
+static long kvm_sbi_fwft_set_double_trap(struct kvm_vcpu *vcpu,
+					struct kvm_sbi_fwft_config *conf,
+					unsigned long value)
+{
+	struct kvm_vcpu_config *cfg = &vcpu->arch.cfg;
+
+	if (value == 1) {
+		cfg->henvcfg |= ENVCFG_DTE;
+		csr_set(CSR_HENVCFG, ENVCFG_DTE);
+	} else if (value == 0) {
+		cfg->henvcfg &= ~ENVCFG_DTE;
+		csr_clear(CSR_HENVCFG, ENVCFG_DTE);
+	} else {
+		return SBI_ERR_INVALID_PARAM;
+	}
+
+	return SBI_SUCCESS;
+}
+
+static long kvm_sbi_fwft_get_double_trap(struct kvm_vcpu *vcpu,
+					struct kvm_sbi_fwft_config *conf,
+					unsigned long *value)
+{
+	*value = (csr_read(CSR_HENVCFG) & ENVCFG_DTE) == ENVCFG_DTE;
+
+	return SBI_SUCCESS;
+}
+
 static const struct kvm_sbi_fwft_feature features[] = {
 	{
 		.id = SBI_FWFT_MISALIGNED_EXC_DELEG,
 		.supported = kvm_sbi_fwft_misaligned_delegation_supported,
 		.set = kvm_sbi_fwft_set_misaligned_delegation,
 		.get = kvm_sbi_fwft_get_misaligned_delegation,
+	},
+	{
+		.id = SBI_FWFT_DOUBLE_TRAP,
+		.supported = kvm_sbi_fwft_double_trap_supported,
+		.set = kvm_sbi_fwft_set_double_trap,
+		.get = kvm_sbi_fwft_get_double_trap,
 	},
 };
 

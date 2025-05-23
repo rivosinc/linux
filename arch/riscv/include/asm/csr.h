@@ -208,6 +208,7 @@
 #define ENVCFG_STCE			(_AC(1, ULL) << 63)
 #define ENVCFG_PBMTE			(_AC(1, ULL) << 62)
 #define ENVCFG_ADUE			(_AC(1, ULL) << 61)
+#define ENVCFG_DTE			(_AC(1, ULL) << 59)
 #define ENVCFG_PMM			(_AC(0x3, ULL) << 32)
 #define ENVCFG_PMM_PMLEN_0		(_AC(0x0, ULL) << 32)
 #define ENVCFG_PMM_PMLEN_7		(_AC(0x2, ULL) << 32)
