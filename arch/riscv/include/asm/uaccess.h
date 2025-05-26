@@ -121,8 +121,19 @@ do {								\
 } while (0)
 #endif /* CONFIG_64BIT */
 
+unsigned long __must_check __asm_copy_to_user(void __user *to,
+	const void *from, unsigned long n);
+unsigned long __must_check __asm_copy_from_user(void *to,
+	const void __user *from, unsigned long n);
+
 #define __get_user_nocheck(x, __gu_ptr, __gu_err)		\
 do {								\
+	if (!IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)) { \
+		if (!IS_ALIGNED((uintptr_t)__gu_ptr, sizeof(*__gu_ptr))) { \
+			__gu_err = __asm_copy_from_user(&(x), __gu_ptr, sizeof(*__gu_ptr)); \
+			break; \
+		} \
+	} \
 	switch (sizeof(*__gu_ptr)) {				\
 	case 1:							\
 		__get_user_asm("lb", (x), __gu_ptr, __gu_err);	\
@@ -237,7 +248,13 @@ do {								\
 #endif /* CONFIG_64BIT */
 
 #define __put_user_nocheck(x, __gu_ptr, __pu_err)					\
-do {								\
+do {										\
+	if (!IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)) { \
+		if (!IS_ALIGNED((uintptr_t)__gu_ptr, sizeof(*__gu_ptr))) { \
+			__pu_err = __asm_copy_to_user(__gu_ptr, &(x), sizeof(*__gu_ptr)); \
+			break; \
+		} \
+	} \
 	switch (sizeof(*__gu_ptr)) {				\
 	case 1:							\
 		__put_user_asm("sb", (x), __gu_ptr, __pu_err);	\
@@ -316,12 +333,6 @@ do {								\
 		__put_user((x), __p) :				\
 		-EFAULT;					\
 })
-
-
-unsigned long __must_check __asm_copy_to_user(void __user *to,
-	const void *from, unsigned long n);
-unsigned long __must_check __asm_copy_from_user(void *to,
-	const void __user *from, unsigned long n);
 
 static inline unsigned long
 raw_copy_from_user(void *to, const void __user *from, unsigned long n)
