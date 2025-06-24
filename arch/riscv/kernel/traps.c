@@ -227,6 +227,8 @@ static void do_trap_misaligned(struct pt_regs *regs, enum misaligned_access_type
 		state = irqentry_nmi_enter(regs);
 	}
 
+	perf_sw_event(PERF_COUNT_SW_ALIGNMENT_FAULTS, 1, regs, regs->badaddr);
+
 	if (misaligned_handler[type].handler(regs))
 		do_trap_error(regs, SIGBUS, BUS_ADRALN, regs->epc,
 			      misaligned_handler[type].type_str);
