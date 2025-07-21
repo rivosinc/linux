@@ -56,7 +56,7 @@ static void cove_delete_shared_pinned_page_list(struct kvm *kvm,
 	}
 }
 
-static void cove_delete_page_list(struct kvm *kvm, struct list_head *tpages, bool unpin)
+static void cove_delete_page_list(struct kvm *kvm, struct list_head *tpages, bool unpin, bool is_allocated_pages)
 {
 	struct kvm_riscv_cove_page *tpage, *temp;
 	int rc;
@@ -68,6 +68,11 @@ static void cove_delete_page_list(struct kvm *kvm, struct list_head *tpages, boo
 		if (unpin)
 			unpin_user_pages_dirty_lock(&tpage->page, 1, true);
 		list_del(&tpage->link);
+		
+		if(is_allocated_pages) {
+			__free_page(tpage->page);
+			tpage->page = NULL;
+		}
 		kfree(tpage);
 	}
 }
@@ -784,7 +789,7 @@ int kvm_riscv_cove_vm_measure_pages(struct kvm *kvm, struct kvm_riscv_cove_measu
 
 	if (rc < 0) {
 		/* We don't to need unpin pages as it is allocated by the hypervisor itself */
-		cove_delete_page_list(kvm, &tvmc->measured_pages, false);
+		cove_delete_page_list(kvm, &tvmc->measured_pages, false, false);
 		/* Free the last allocated page for which conversion/measurement failed */
 		kfree(conf_page);
 		kvm_err("Adding/Converting measured pages failed %d\n", num_pages);
@@ -844,9 +849,9 @@ void kvm_riscv_cove_vm_destroy(struct kvm *kvm)
 		return;
 	}
 
-	cove_delete_page_list(kvm, &tvmc->reclaim_pending_pages, false);
-	cove_delete_page_list(kvm, &tvmc->measured_pages, false);
-	cove_delete_page_list(kvm, &tvmc->zero_pages, true);
+	cove_delete_page_list(kvm, &tvmc->reclaim_pending_pages, false, true);
+	cove_delete_page_list(kvm, &tvmc->measured_pages, false, true);
+	cove_delete_page_list(kvm, &tvmc->zero_pages, true, false);
 	cove_delete_shared_pinned_page_list(kvm, &tvmc->shared_pages);
 
 	/* Reclaim and Free the pages for tvm state management */
