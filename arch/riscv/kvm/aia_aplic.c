@@ -7,12 +7,19 @@
  *	Anup Patel <apatel@ventanamicro.com>
  */
 
+<<<<<<< HEAD
+=======
+#include <linux/irqchip/riscv-aplic.h>
+>>>>>>> upstream/cove-integration
 #include <linux/kvm_host.h>
 #include <linux/math.h>
 #include <linux/spinlock.h>
 #include <linux/swab.h>
 #include <kvm/iodev.h>
+<<<<<<< HEAD
 #include <asm/kvm_aia_aplic.h>
+=======
+>>>>>>> upstream/cove-integration
 
 struct aplic_irq {
 	raw_spinlock_t lock;
@@ -234,8 +241,12 @@ static void aplic_update_irq_range(struct kvm *kvm, u32 first, u32 last)
 
 		inject = false;
 		target = irqd->target;
+<<<<<<< HEAD
 		if ((irqd->state & APLIC_IRQ_STATE_ENPEND) ==
 		    APLIC_IRQ_STATE_ENPEND) {
+=======
+		if (irqd->state & APLIC_IRQ_STATE_ENPEND) {
+>>>>>>> upstream/cove-integration
 			irqd->state &= ~APLIC_IRQ_STATE_PENDING;
 			inject = true;
 		}
@@ -250,7 +261,11 @@ static void aplic_update_irq_range(struct kvm *kvm, u32 first, u32 last)
 int kvm_riscv_aia_aplic_inject(struct kvm *kvm, u32 source, bool level)
 {
 	u32 target;
+<<<<<<< HEAD
 	bool inject = false, ie;
+=======
+	bool inject, ie;
+>>>>>>> upstream/cove-integration
 	unsigned long flags;
 	struct aplic_irq *irqd;
 	struct aplic *aplic = kvm->arch.aia.aplic_state;
@@ -291,9 +306,15 @@ int kvm_riscv_aia_aplic_inject(struct kvm *kvm, u32 source, bool level)
 	else
 		irqd->state &= ~APLIC_IRQ_STATE_INPUT;
 
+<<<<<<< HEAD
 	target = irqd->target;
 	if (ie && ((irqd->state & APLIC_IRQ_STATE_ENPEND) ==
 		   APLIC_IRQ_STATE_ENPEND)) {
+=======
+	inject = false;
+	target = irqd->target;
+	if (ie && (irqd->state & APLIC_IRQ_STATE_ENPEND)) {
+>>>>>>> upstream/cove-integration
 		irqd->state &= ~APLIC_IRQ_STATE_PENDING;
 		inject = true;
 	}
@@ -370,29 +391,49 @@ static int aplic_mmio_read_offset(struct kvm *kvm, gpa_t off, u32 *val32)
 	if (off == APLIC_DOMAINCFG) {
 		*val32 = APLIC_DOMAINCFG_RDONLY |
 			 aplic->domaincfg | APLIC_DOMAINCFG_DM;
+<<<<<<< HEAD
 	} else if ((off >= APLIC_SOURCECFG_BASE) &&
 		 (off < (APLIC_SOURCECFG_BASE + (aplic->nr_irqs - 1) * 4))) {
 		i = ((off - APLIC_SOURCECFG_BASE) >> 2) + 1;
 		*val32 = aplic_read_sourcecfg(aplic, i);
 	} else if ((off >= APLIC_SETIP_BASE) &&
+=======
+	} else if ((APLIC_SOURCECFG_BASE <= off) &&
+		 (off < (APLIC_SOURCECFG_BASE + (aplic->nr_irqs - 1) * 4))) {
+		i = ((off - APLIC_SOURCECFG_BASE) >> 2) + 1;
+		*val32 = aplic_read_sourcecfg(aplic, i);
+	} else if ((APLIC_SETIP_BASE <= off) &&
+>>>>>>> upstream/cove-integration
 		   (off < (APLIC_SETIP_BASE + aplic->nr_words * 4))) {
 		i = (off - APLIC_SETIP_BASE) >> 2;
 		*val32 = aplic_read_pending_word(aplic, i);
 	} else if (off == APLIC_SETIPNUM) {
 		*val32 = 0;
+<<<<<<< HEAD
 	} else if ((off >= APLIC_CLRIP_BASE) &&
+=======
+	} else if ((APLIC_CLRIP_BASE <= off) &&
+>>>>>>> upstream/cove-integration
 		   (off < (APLIC_CLRIP_BASE + aplic->nr_words * 4))) {
 		i = (off - APLIC_CLRIP_BASE) >> 2;
 		*val32 = aplic_read_input_word(aplic, i);
 	} else if (off == APLIC_CLRIPNUM) {
 		*val32 = 0;
+<<<<<<< HEAD
 	} else if ((off >= APLIC_SETIE_BASE) &&
+=======
+	} else if ((APLIC_SETIE_BASE <= off) &&
+>>>>>>> upstream/cove-integration
 		   (off < (APLIC_SETIE_BASE + aplic->nr_words * 4))) {
 		i = (off - APLIC_SETIE_BASE) >> 2;
 		*val32 = aplic_read_enabled_word(aplic, i);
 	} else if (off == APLIC_SETIENUM) {
 		*val32 = 0;
+<<<<<<< HEAD
 	} else if ((off >= APLIC_CLRIE_BASE) &&
+=======
+	} else if ((APLIC_CLRIE_BASE <= off) &&
+>>>>>>> upstream/cove-integration
 		   (off < (APLIC_CLRIE_BASE + aplic->nr_words * 4))) {
 		*val32 = 0;
 	} else if (off == APLIC_CLRIENUM) {
@@ -403,7 +444,11 @@ static int aplic_mmio_read_offset(struct kvm *kvm, gpa_t off, u32 *val32)
 		*val32 = 0;
 	} else if (off == APLIC_GENMSI) {
 		*val32 = aplic->genmsi;
+<<<<<<< HEAD
 	} else if ((off >= APLIC_TARGET_BASE) &&
+=======
+	} else if ((APLIC_TARGET_BASE <= off) &&
+>>>>>>> upstream/cove-integration
 		   (off < (APLIC_TARGET_BASE + (aplic->nr_irqs - 1) * 4))) {
 		i = ((off - APLIC_TARGET_BASE) >> 2) + 1;
 		*val32 = aplic_read_target(aplic, i);
@@ -435,29 +480,49 @@ static int aplic_mmio_write_offset(struct kvm *kvm, gpa_t off, u32 val32)
 	if (off == APLIC_DOMAINCFG) {
 		/* Only IE bit writeable */
 		aplic->domaincfg = val32 & APLIC_DOMAINCFG_IE;
+<<<<<<< HEAD
 	} else if ((off >= APLIC_SOURCECFG_BASE) &&
 		 (off < (APLIC_SOURCECFG_BASE + (aplic->nr_irqs - 1) * 4))) {
 		i = ((off - APLIC_SOURCECFG_BASE) >> 2) + 1;
 		aplic_write_sourcecfg(aplic, i, val32);
 	} else if ((off >= APLIC_SETIP_BASE) &&
+=======
+	} else if ((APLIC_SOURCECFG_BASE <= off) &&
+		 (off < (APLIC_SOURCECFG_BASE + (aplic->nr_irqs - 1) * 4))) {
+		i = ((off - APLIC_SOURCECFG_BASE) >> 2) + 1;
+		aplic_write_sourcecfg(aplic, i, val32);
+	} else if ((APLIC_SETIP_BASE <= off) &&
+>>>>>>> upstream/cove-integration
 		   (off < (APLIC_SETIP_BASE + aplic->nr_words * 4))) {
 		i = (off - APLIC_SETIP_BASE) >> 2;
 		aplic_write_pending_word(aplic, i, val32, true);
 	} else if (off == APLIC_SETIPNUM) {
 		aplic_write_pending(aplic, val32, true);
+<<<<<<< HEAD
 	} else if ((off >= APLIC_CLRIP_BASE) &&
+=======
+	} else if ((APLIC_CLRIP_BASE <= off) &&
+>>>>>>> upstream/cove-integration
 		   (off < (APLIC_CLRIP_BASE + aplic->nr_words * 4))) {
 		i = (off - APLIC_CLRIP_BASE) >> 2;
 		aplic_write_pending_word(aplic, i, val32, false);
 	} else if (off == APLIC_CLRIPNUM) {
 		aplic_write_pending(aplic, val32, false);
+<<<<<<< HEAD
 	} else if ((off >= APLIC_SETIE_BASE) &&
+=======
+	} else if ((APLIC_SETIE_BASE <= off) &&
+>>>>>>> upstream/cove-integration
 		   (off < (APLIC_SETIE_BASE + aplic->nr_words * 4))) {
 		i = (off - APLIC_SETIE_BASE) >> 2;
 		aplic_write_enabled_word(aplic, i, val32, true);
 	} else if (off == APLIC_SETIENUM) {
 		aplic_write_enabled(aplic, val32, true);
+<<<<<<< HEAD
 	} else if ((off >= APLIC_CLRIE_BASE) &&
+=======
+	} else if ((APLIC_CLRIE_BASE <= off) &&
+>>>>>>> upstream/cove-integration
 		   (off < (APLIC_CLRIE_BASE + aplic->nr_words * 4))) {
 		i = (off - APLIC_CLRIE_BASE) >> 2;
 		aplic_write_enabled_word(aplic, i, val32, false);
@@ -473,7 +538,11 @@ static int aplic_mmio_write_offset(struct kvm *kvm, gpa_t off, u32 val32)
 		kvm_riscv_aia_inject_msi_by_id(kvm,
 				val32 >> APLIC_TARGET_HART_IDX_SHIFT, 0,
 				val32 & APLIC_TARGET_EIID_MASK);
+<<<<<<< HEAD
 	} else if ((off >= APLIC_TARGET_BASE) &&
+=======
+	} else if ((APLIC_TARGET_BASE <= off) &&
+>>>>>>> upstream/cove-integration
 		   (off < (APLIC_TARGET_BASE + (aplic->nr_irqs - 1) * 4))) {
 		i = ((off - APLIC_TARGET_BASE) >> 2) + 1;
 		aplic_write_target(aplic, i, val32);

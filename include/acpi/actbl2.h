@@ -48,7 +48,11 @@
 #define ACPI_SIG_PRMT           "PRMT"	/* Platform Runtime Mechanism Table */
 #define ACPI_SIG_RASF           "RASF"	/* RAS Feature table */
 #define ACPI_SIG_RGRT           "RGRT"	/* Regulatory Graphics Resource Table */
+<<<<<<< HEAD
 #define ACPI_SIG_RHCT           "RHCT"	/* RISC-V Hart Capabilities Table */
+=======
+#define ACPI_SIG_RHCT           "RHCT"  /* RISC-V Hart Capabilities Table */
+>>>>>>> upstream/cove-integration
 #define ACPI_SIG_SBST           "SBST"	/* Smart Battery Specification Table */
 #define ACPI_SIG_SDEI           "SDEI"	/* Software Delegated Exception Interface Table */
 #define ACPI_SIG_SDEV           "SDEV"	/* Secure Devices table */
@@ -893,10 +897,14 @@ enum acpi_madt_type {
 	ACPI_MADT_TYPE_BIO_PIC = 22,
 	ACPI_MADT_TYPE_LPC_PIC = 23,
 	ACPI_MADT_TYPE_RINTC = 24,
+<<<<<<< HEAD
 	ACPI_MADT_TYPE_IMSIC = 25,
 	ACPI_MADT_TYPE_APLIC = 26,
 	ACPI_MADT_TYPE_PLIC = 27,
 	ACPI_MADT_TYPE_RESERVED = 28,	/* 28 to 0x7F are reserved */
+=======
+	ACPI_MADT_TYPE_RESERVED = 25,   /* 25 to 0x7F are reserved */
+>>>>>>> upstream/cove-integration
 	ACPI_MADT_TYPE_OEM_RESERVED = 0x80	/* 0x80 to 0xFF are reserved for OEM use */
 };
 
@@ -1263,15 +1271,20 @@ struct acpi_madt_rintc {
 	u8 reserved;
 	u32 flags;
 	u64 hart_id;
+<<<<<<< HEAD
 	u32 uid;		/* ACPI processor UID */
 	u32 ext_intc_id;	/* External INTC Id */
 	u64 imsic_addr;		/* IMSIC base address */
 	u32 imsic_size;		/* IMSIC size */
+=======
+	u32 uid;  /* ACPI processor UID */
+>>>>>>> upstream/cove-integration
 };
 
 /* Values for RISC-V INTC Version field above */
 
 enum acpi_madt_rintc_version {
+<<<<<<< HEAD
 	ACPI_MADT_RINTC_VERSION_NONE = 0,
 	ACPI_MADT_RINTC_VERSION_V1 = 1,
 	ACPI_MADT_RINTC_VERSION_RESERVED = 2	/* 2 and greater are reserved */
@@ -1317,6 +1330,11 @@ struct acpi_madt_plic {
 	u32 size;
 	u64 base_addr;
 	u32 gsi_base;
+=======
+	ACPI_MADT_RINTC_VERSION_NONE       = 0,
+	ACPI_MADT_RINTC_VERSION_V1         = 1,
+	ACPI_MADT_RINTC_VERSION_RESERVED   = 2	/* 2 and greater are reserved */
+>>>>>>> upstream/cove-integration
 };
 
 /* 80: OEM data */
@@ -2777,6 +2795,7 @@ enum acpi_rgrt_image_type {
  ******************************************************************************/
 
 struct acpi_table_rhct {
+<<<<<<< HEAD
 	struct acpi_table_header header;	/* Common ACPI table header */
 	u32 flags;		/* RHCT flags */
 	u64 time_base_freq;
@@ -2787,23 +2806,42 @@ struct acpi_table_rhct {
 /* RHCT Flags */
 
 #define ACPI_RHCT_TIMER_CANNOT_WAKEUP_CPU       (1)
+=======
+	struct acpi_table_header        header;             /* Common ACPI table header */
+	u32                             reserved;
+	u64                             time_base_freq;
+	u32                             node_count;
+	u32                             node_offset;
+};
+
+>>>>>>> upstream/cove-integration
 /*
  * RHCT subtables
  */
 struct acpi_rhct_node_header {
+<<<<<<< HEAD
 	u16 type;
 	u16 length;
 	u16 revision;
+=======
+	u16                             type;
+	u16                             length;
+	u16                             revision;
+>>>>>>> upstream/cove-integration
 };
 
 /* Values for RHCT subtable Type above */
 
 enum acpi_rhct_node_type {
 	ACPI_RHCT_NODE_TYPE_ISA_STRING = 0x0000,
+<<<<<<< HEAD
 	ACPI_RHCT_NODE_TYPE_CMO = 0x0001,
 	ACPI_RHCT_NODE_TYPE_MMU = 0x0002,
 	ACPI_RHCT_NODE_TYPE_RESERVED = 0x0003,
 	ACPI_RHCT_NODE_TYPE_HART_INFO = 0xFFFF,
+=======
+	ACPI_RHCT_NODE_TYPE_HART_INFO  = 0xFFFF,
+>>>>>>> upstream/cove-integration
 };
 
 /*
@@ -2812,6 +2850,7 @@ enum acpi_rhct_node_type {
 
 /* ISA string node structure */
 struct acpi_rhct_isa_string {
+<<<<<<< HEAD
 	u16 isa_length;
 	char isa[];
 };
@@ -2832,16 +2871,28 @@ enum acpi_rhct_mmu_type {
 	ACPI_RHCT_MMU_TYPE_SV39 = 0,
 	ACPI_RHCT_MMU_TYPE_SV48 = 1,
 	ACPI_RHCT_MMU_TYPE_SV57 = 2
+=======
+	u16                             isa_length;
+	char                            isa[];
+>>>>>>> upstream/cove-integration
 };
 
 /* Hart Info node structure */
 struct acpi_rhct_hart_info {
+<<<<<<< HEAD
 	u16 num_offsets;
 	u32 uid;		/* ACPI processor UID */
 };
 
 /*******************************************************************************
  *
+=======
+	u16                             num_offsets;
+	u32                             uid;                /* ACPI processor UID */
+};
+
+/*******************************************************************************
+>>>>>>> upstream/cove-integration
  * SBST - Smart Battery Specification Table
  *        Version 1
  *

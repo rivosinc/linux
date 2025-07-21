@@ -132,6 +132,7 @@ static int map_rintc_hartid(struct acpi_subtable_header *entry,
 	return -EINVAL;
 }
 
+<<<<<<< HEAD
 /*
  * Retrieve LoongArch CPU physical id
  */
@@ -156,6 +157,8 @@ static int map_core_pic_id(struct acpi_subtable_header *entry,
 	return -EINVAL;
 }
 
+=======
+>>>>>>> upstream/cove-integration
 static phys_cpuid_t map_madt_entry(struct acpi_table_madt *madt,
 				   int type, u32 acpi_id)
 {
@@ -189,9 +192,12 @@ static phys_cpuid_t map_madt_entry(struct acpi_table_madt *madt,
 		} else if (header->type == ACPI_MADT_TYPE_RINTC) {
 			if (!map_rintc_hartid(header, type, acpi_id, &phys_id))
 				break;
+<<<<<<< HEAD
 		} else if (header->type == ACPI_MADT_TYPE_CORE_PIC) {
 			if (!map_core_pic_id(header, type, acpi_id, &phys_id))
 				break;
+=======
+>>>>>>> upstream/cove-integration
 		}
 		entry += header->length;
 	}

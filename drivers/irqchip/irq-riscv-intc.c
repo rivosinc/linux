@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/smp.h>
+#include <asm/hwcap.h>
 
 static struct irq_domain *intc_domain;
 
@@ -28,6 +29,18 @@ static asmlinkage void riscv_intc_irq(struct pt_regs *regs)
 		panic("unexpected interrupt cause");
 
 	generic_handle_domain_irq(intc_domain, cause);
+<<<<<<< HEAD
+=======
+}
+
+static asmlinkage void riscv_intc_aia_irq(struct pt_regs *regs)
+{
+	unsigned long topi;
+
+	while ((topi = csr_read(CSR_TOPI)))
+		generic_handle_domain_irq(intc_domain,
+					  topi >> TOPI_IID_SHIFT);
+>>>>>>> upstream/cove-integration
 }
 
 /*
@@ -39,12 +52,18 @@ static asmlinkage void riscv_intc_irq(struct pt_regs *regs)
 
 static void riscv_intc_irq_mask(struct irq_data *d)
 {
-	csr_clear(CSR_IE, BIT(d->hwirq));
+	if (d->hwirq < BITS_PER_LONG)
+		csr_clear(CSR_IE, BIT(d->hwirq));
+	else
+		csr_clear(CSR_IEH, BIT(d->hwirq - BITS_PER_LONG));
 }
 
 static void riscv_intc_irq_unmask(struct irq_data *d)
 {
-	csr_set(CSR_IE, BIT(d->hwirq));
+	if (d->hwirq < BITS_PER_LONG)
+		csr_set(CSR_IE, BIT(d->hwirq));
+	else
+		csr_set(CSR_IEH, BIT(d->hwirq - BITS_PER_LONG));
 }
 
 static void riscv_intc_irq_eoi(struct irq_data *d)
@@ -115,16 +134,32 @@ static struct fwnode_handle *riscv_intc_hwnode(void)
 
 static int __init riscv_intc_init_common(struct fwnode_handle *fn)
 {
+<<<<<<< HEAD
 	int rc;
 
 	intc_domain = irq_domain_create_linear(fn, BITS_PER_LONG,
+=======
+	int rc, nr_irqs = BITS_PER_LONG;
+
+	if (riscv_isa_extension_available(NULL, SxAIA) && BITS_PER_LONG == 32)
+		nr_irqs = nr_irqs * 2;
+
+	intc_domain = irq_domain_create_linear(fn, nr_irqs,
+>>>>>>> upstream/cove-integration
 					       &riscv_intc_domain_ops, NULL);
 	if (!intc_domain) {
 		pr_err("unable to add IRQ domain\n");
 		return -ENXIO;
 	}
 
+<<<<<<< HEAD
 	rc = set_handle_irq(&riscv_intc_irq);
+=======
+	if (riscv_isa_extension_available(NULL, SxAIA))
+		rc = set_handle_irq(&riscv_intc_aia_irq);
+	else
+		rc = set_handle_irq(&riscv_intc_irq);
+>>>>>>> upstream/cove-integration
 	if (rc) {
 		pr_err("failed to set irq handler\n");
 		return rc;
@@ -132,7 +167,13 @@ static int __init riscv_intc_init_common(struct fwnode_handle *fn)
 
 	riscv_set_intc_hwnode_fn(riscv_intc_hwnode);
 
+<<<<<<< HEAD
 	pr_info("%d local interrupts mapped\n", BITS_PER_LONG);
+=======
+	pr_info("%d local interrupts mapped%s\n",
+		nr_irqs, (riscv_isa_extension_available(NULL, SxAIA)) ?
+			 " using AIA" : "");
+>>>>>>> upstream/cove-integration
 
 	return 0;
 }
@@ -164,9 +205,20 @@ static int __init riscv_intc_init(struct device_node *node,
 		 */
 		fwnode_dev_initialized(of_fwnode_handle(node), true);
 		return 0;
+<<<<<<< HEAD
 	}
 
 	return riscv_intc_init_common(of_node_to_fwnode(node));
+=======
+
+	rc = riscv_intc_init_common(of_node_to_fwnode(node));
+	if (rc) {
+		pr_err("failed to initialize INTC\n");
+		return rc;
+	}
+
+	return 0;
+>>>>>>> upstream/cove-integration
 }
 
 IRQCHIP_DECLARE(riscv, "riscv,cpu-intc", riscv_intc_init);
@@ -176,6 +228,10 @@ IRQCHIP_DECLARE(riscv, "riscv,cpu-intc", riscv_intc_init);
 static int __init riscv_intc_acpi_init(union acpi_subtable_headers *header,
 				       const unsigned long end)
 {
+<<<<<<< HEAD
+=======
+	int rc;
+>>>>>>> upstream/cove-integration
 	struct fwnode_handle *fn;
 	struct acpi_madt_rintc *rintc;
 
@@ -196,7 +252,17 @@ static int __init riscv_intc_acpi_init(union acpi_subtable_headers *header,
 		return -ENOMEM;
 	}
 
+<<<<<<< HEAD
 	return riscv_intc_init_common(fn);
+=======
+	rc = riscv_intc_init_common(fn);
+	if (rc) {
+		pr_err("failed to initialize INTC\n");
+		return rc;
+	}
+
+	return 0;
+>>>>>>> upstream/cove-integration
 }
 
 IRQCHIP_ACPI_DECLARE(riscv_intc, ACPI_MADT_TYPE_RINTC, NULL,

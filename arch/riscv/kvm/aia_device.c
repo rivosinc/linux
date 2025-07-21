@@ -8,9 +8,16 @@
  */
 
 #include <linux/bits.h>
+<<<<<<< HEAD
 #include <linux/kvm_host.h>
 #include <linux/uaccess.h>
 #include <asm/kvm_aia_imsic.h>
+=======
+#include <linux/irqchip/riscv-imsic.h>
+#include <linux/kvm_host.h>
+#include <linux/uaccess.h>
+#include <asm/kvm_cove.h>
+>>>>>>> upstream/cove-integration
 
 static void unlock_vcpus(struct kvm *kvm, int vcpu_lock_idx)
 {
@@ -102,7 +109,15 @@ static int aia_config(struct kvm *kvm, unsigned long type,
 				break;
 			default:
 				return -EINVAL;
+<<<<<<< HEAD
 			}
+=======
+			};
+			/* TVM must have a physical vs file */
+			if (is_cove_vm(kvm) && *nr != KVM_DEV_RISCV_AIA_MODE_HWACCEL)
+				return -EINVAL;
+
+>>>>>>> upstream/cove-integration
 			aia->mode = *nr;
 		} else
 			*nr = aia->mode;
@@ -110,9 +125,14 @@ static int aia_config(struct kvm *kvm, unsigned long type,
 	case KVM_DEV_RISCV_AIA_CONFIG_IDS:
 		if (write) {
 			if ((*nr < KVM_DEV_RISCV_AIA_IDS_MIN) ||
+<<<<<<< HEAD
 			    (*nr >= KVM_DEV_RISCV_AIA_IDS_MAX) ||
 			    ((*nr & KVM_DEV_RISCV_AIA_IDS_MIN) !=
 			     KVM_DEV_RISCV_AIA_IDS_MIN) ||
+=======
+			    (KVM_DEV_RISCV_AIA_IDS_MAX <= *nr) ||
+			    (*nr & KVM_DEV_RISCV_AIA_IDS_MIN) ||
+>>>>>>> upstream/cove-integration
 			    (kvm_riscv_aia_max_ids <= *nr))
 				return -EINVAL;
 			aia->nr_ids = *nr;
@@ -121,8 +141,13 @@ static int aia_config(struct kvm *kvm, unsigned long type,
 		break;
 	case KVM_DEV_RISCV_AIA_CONFIG_SRCS:
 		if (write) {
+<<<<<<< HEAD
 			if ((*nr >= KVM_DEV_RISCV_AIA_SRCS_MAX) ||
 			    (*nr >= kvm_riscv_aia_max_ids))
+=======
+			if ((KVM_DEV_RISCV_AIA_SRCS_MAX <= *nr) ||
+			    (kvm_riscv_aia_max_ids <= *nr))
+>>>>>>> upstream/cove-integration
 				return -EINVAL;
 			aia->nr_sources = *nr;
 		} else
@@ -130,7 +155,11 @@ static int aia_config(struct kvm *kvm, unsigned long type,
 		break;
 	case KVM_DEV_RISCV_AIA_CONFIG_GROUP_BITS:
 		if (write) {
+<<<<<<< HEAD
 			if (*nr >= KVM_DEV_RISCV_AIA_GROUP_BITS_MAX)
+=======
+			if (KVM_DEV_RISCV_AIA_GROUP_BITS_MAX <= *nr)
+>>>>>>> upstream/cove-integration
 				return -EINVAL;
 			aia->nr_group_bits = *nr;
 		} else
@@ -139,7 +168,11 @@ static int aia_config(struct kvm *kvm, unsigned long type,
 	case KVM_DEV_RISCV_AIA_CONFIG_GROUP_SHIFT:
 		if (write) {
 			if ((*nr < KVM_DEV_RISCV_AIA_GROUP_SHIFT_MIN) ||
+<<<<<<< HEAD
 			    (*nr >= KVM_DEV_RISCV_AIA_GROUP_SHIFT_MAX))
+=======
+			    (KVM_DEV_RISCV_AIA_GROUP_SHIFT_MAX <= *nr))
+>>>>>>> upstream/cove-integration
 				return -EINVAL;
 			aia->nr_group_shift = *nr;
 		} else
@@ -147,7 +180,11 @@ static int aia_config(struct kvm *kvm, unsigned long type,
 		break;
 	case KVM_DEV_RISCV_AIA_CONFIG_HART_BITS:
 		if (write) {
+<<<<<<< HEAD
 			if (*nr >= KVM_DEV_RISCV_AIA_HART_BITS_MAX)
+=======
+			if (KVM_DEV_RISCV_AIA_HART_BITS_MAX <= *nr)
+>>>>>>> upstream/cove-integration
 				return -EINVAL;
 			aia->nr_hart_bits = *nr;
 		} else
@@ -155,7 +192,11 @@ static int aia_config(struct kvm *kvm, unsigned long type,
 		break;
 	case KVM_DEV_RISCV_AIA_CONFIG_GUEST_BITS:
 		if (write) {
+<<<<<<< HEAD
 			if (*nr >= KVM_DEV_RISCV_AIA_GUEST_BITS_MAX)
+=======
+			if (KVM_DEV_RISCV_AIA_GUEST_BITS_MAX <= *nr)
+>>>>>>> upstream/cove-integration
 				return -EINVAL;
 			aia->nr_guest_bits = *nr;
 		} else
@@ -163,7 +204,11 @@ static int aia_config(struct kvm *kvm, unsigned long type,
 		break;
 	default:
 		return -ENXIO;
+<<<<<<< HEAD
 	}
+=======
+	};
+>>>>>>> upstream/cove-integration
 
 	return 0;
 }
@@ -265,6 +310,7 @@ static int aia_init(struct kvm *kvm)
 	if (kvm->created_vcpus != atomic_read(&kvm->online_vcpus))
 		return -EBUSY;
 
+<<<<<<< HEAD
 	/* Number of sources should be less than or equals number of IDs */
 	if (aia->nr_ids < aia->nr_sources)
 		return -EINVAL;
@@ -277,6 +323,26 @@ static int aia_init(struct kvm *kvm)
 	ret = kvm_riscv_aia_aplic_init(kvm);
 	if (ret)
 		return ret;
+=======
+	if (!is_cove_vm(kvm)) {
+		/* Number of sources should be less than or equals number of IDs */
+		if (aia->nr_ids < aia->nr_sources)
+			return -EINVAL;
+		/* APLIC base is required for non-zero number of sources only for non TVMs*/
+		if (aia->nr_sources && aia->aplic_addr == KVM_RISCV_AIA_UNDEF_ADDR)
+			return -EINVAL;
+
+		/* Initialize APLIC */
+		ret = kvm_riscv_aia_aplic_init(kvm);
+		if (ret)
+			return ret;
+
+	} else {
+		ret = kvm_riscv_cove_aia_init(kvm);
+		if (ret)
+			return ret;
+	}
+>>>>>>> upstream/cove-integration
 
 	/* Iterate over each VCPU */
 	kvm_for_each_vcpu(idx, vcpu, kvm) {
@@ -312,7 +378,11 @@ static int aia_init(struct kvm *kvm)
 	return 0;
 
 fail_cleanup_imsics:
+<<<<<<< HEAD
 	for (i = idx - 1; i >= 0; i--) {
+=======
+	for (i = idx - 1; 0 <= i; i--) {
+>>>>>>> upstream/cove-integration
 		vcpu = kvm_get_vcpu(kvm, i);
 		if (!vcpu)
 			continue;
@@ -651,8 +721,19 @@ void kvm_riscv_aia_init_vm(struct kvm *kvm)
 	 */
 
 	/* Initialize default values in AIA global context */
+<<<<<<< HEAD
 	aia->mode = (kvm_riscv_aia_nr_hgei) ?
 		KVM_DEV_RISCV_AIA_MODE_AUTO : KVM_DEV_RISCV_AIA_MODE_EMUL;
+=======
+	if (is_cove_vm(kvm)) {
+		if (!kvm_riscv_aia_nr_hgei)
+			return;
+		aia->mode = KVM_DEV_RISCV_AIA_MODE_HWACCEL;
+	} else {
+		aia->mode = (kvm_riscv_aia_nr_hgei) ?
+			KVM_DEV_RISCV_AIA_MODE_AUTO : KVM_DEV_RISCV_AIA_MODE_EMUL;
+	}
+>>>>>>> upstream/cove-integration
 	aia->nr_ids = kvm_riscv_aia_max_ids - 1;
 	aia->nr_sources = 0;
 	aia->nr_group_bits = 0;

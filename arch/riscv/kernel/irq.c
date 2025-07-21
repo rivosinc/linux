@@ -9,12 +9,19 @@
 #include <linux/irqchip.h>
 #include <linux/irqdomain.h>
 #include <linux/module.h>
+<<<<<<< HEAD
 #include <linux/scs.h>
 #include <linux/seq_file.h>
 #include <asm/sbi.h>
 #include <asm/smp.h>
 #include <asm/softirq_stack.h>
 #include <asm/stacktrace.h>
+=======
+#include <linux/seq_file.h>
+#include <asm/sbi.h>
+#include <asm/covg_sbi.h>
+#include <asm/cove.h>
+>>>>>>> upstream/cove-integration
 
 static struct fwnode_handle *(*__get_intc_node)(void);
 
@@ -31,6 +38,7 @@ struct fwnode_handle *riscv_get_intc_hwnode(void)
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(riscv_get_intc_hwnode);
+<<<<<<< HEAD
 
 #ifdef CONFIG_IRQ_STACKS
 #include <asm/irq_stack.h>
@@ -98,6 +106,8 @@ void do_softirq_own_stack(void)
 static void init_irq_scs(void) {}
 static void init_irq_stacks(void) {}
 #endif /* CONFIG_IRQ_STACKS */
+=======
+>>>>>>> upstream/cove-integration
 
 int arch_show_interrupts(struct seq_file *p, int prec)
 {
@@ -107,10 +117,26 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 
 void __init init_IRQ(void)
 {
+<<<<<<< HEAD
 	init_irq_scs();
 	init_irq_stacks();
+=======
+	int ret;
+
+>>>>>>> upstream/cove-integration
 	irqchip_init();
 	if (!handle_arch_irq)
 		panic("No interrupt controller found.");
 	sbi_ipi_init();
+<<<<<<< HEAD
+=======
+
+	if (is_cove_guest()) {
+		/* FIXME: For now just allow all interrupts. */
+		ret = sbi_covg_allow_all_external_interrupt();
+
+		if (ret)
+			pr_err("Failed to allow external interrupts.\n");
+	}
+>>>>>>> upstream/cove-integration
 }

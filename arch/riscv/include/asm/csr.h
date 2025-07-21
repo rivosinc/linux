@@ -107,6 +107,8 @@
 #define EXC_VIRTUAL_INST_FAULT		22
 #define EXC_STORE_GUEST_PAGE_FAULT	23
 
+#define EXC_CUSTOM_KVM_COVE_RUN_FAIL	48
+
 /* PMP configuration */
 #define PMP_R			0x01
 #define PMP_W			0x02
@@ -363,10 +365,13 @@
 #define CSR_VSIEH		0x214
 #define CSR_VSIPH		0x254
 
+<<<<<<< HEAD
 /* Hypervisor stateen CSRs */
 #define CSR_HSTATEEN0		0x60c
 #define CSR_HSTATEEN0H		0x61c
 
+=======
+>>>>>>> upstream/cove-integration
 #define CSR_MSTATUS		0x300
 #define CSR_MISA		0x301
 #define CSR_MIDELEG		0x303
@@ -405,12 +410,15 @@
 #define CSR_MVIPH		0x319
 #define CSR_MIPH		0x354
 
+<<<<<<< HEAD
 #define CSR_VSTART		0x8
 #define CSR_VCSR		0xf
 #define CSR_VL			0xc20
 #define CSR_VTYPE		0xc21
 #define CSR_VLENB		0xc22
 
+=======
+>>>>>>> upstream/cove-integration
 #ifdef CONFIG_RISCV_M_MODE
 # define CSR_STATUS	CSR_MSTATUS
 # define CSR_IE		CSR_MIE

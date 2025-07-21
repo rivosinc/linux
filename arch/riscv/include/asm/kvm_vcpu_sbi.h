@@ -22,7 +22,11 @@ enum kvm_riscv_sbi_ext_status {
 
 struct kvm_vcpu_sbi_context {
 	int return_handled;
+<<<<<<< HEAD
 	enum kvm_riscv_sbi_ext_status ext_status[KVM_RISCV_SBI_EXT_MAX];
+=======
+	bool extension_disabled[KVM_RISCV_SBI_EXT_MAX];
+>>>>>>> upstream/cove-integration
 };
 
 struct kvm_vcpu_sbi_return {
@@ -76,6 +80,9 @@ extern const struct kvm_vcpu_sbi_extension vcpu_sbi_ext_hsm;
 extern const struct kvm_vcpu_sbi_extension vcpu_sbi_ext_dbcn;
 extern const struct kvm_vcpu_sbi_extension vcpu_sbi_ext_experimental;
 extern const struct kvm_vcpu_sbi_extension vcpu_sbi_ext_vendor;
+#ifdef CONFIG_RISCV_COVE_HOST
+extern const struct kvm_vcpu_sbi_extension vcpu_sbi_ext_covg;
+#endif
 
 #ifdef CONFIG_RISCV_PMU_SBI
 extern const struct kvm_vcpu_sbi_extension vcpu_sbi_ext_pmu;

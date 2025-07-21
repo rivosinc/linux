@@ -14,6 +14,10 @@
 #include <linux/memory.h>
 #include <linux/module.h>
 #include <linux/of.h>
+<<<<<<< HEAD
+=======
+#include <linux/of_device.h>
+>>>>>>> upstream/cove-integration
 #include <asm/acpi.h>
 #include <asm/alternative.h>
 #include <asm/cacheflush.h>
@@ -351,7 +355,13 @@ static void __init riscv_fill_hwcap_from_isa_string(unsigned long *isa2hwcap)
 {
 	struct device_node *node;
 	const char *isa;
+<<<<<<< HEAD
 	int rc;
+=======
+	char print_str[NUM_ALPHA_EXTS + 1];
+	int i, j, rc;
+	unsigned long isa2hwcap[26] = {0};
+>>>>>>> upstream/cove-integration
 	struct acpi_table_header *rhct;
 	acpi_status status;
 	unsigned int cpu;
@@ -362,12 +372,27 @@ static void __init riscv_fill_hwcap_from_isa_string(unsigned long *isa2hwcap)
 			return;
 	}
 
+<<<<<<< HEAD
 	for_each_possible_cpu(cpu) {
 		struct riscv_isainfo *isainfo = &hart_isa[cpu];
+=======
+	elf_hwcap = 0;
+
+	bitmap_zero(riscv_isa, RISCV_ISA_EXT_MAX);
+
+	if (!acpi_disabled) {
+		status = acpi_get_table(ACPI_SIG_RHCT, 0, &rhct);
+		if (ACPI_FAILURE(status))
+			return;
+	}
+
+	for_each_possible_cpu(cpu) {
+>>>>>>> upstream/cove-integration
 		unsigned long this_hwcap = 0;
 
 		if (acpi_disabled) {
 			node = of_cpu_device_node_get(cpu);
+<<<<<<< HEAD
 			if (!node) {
 				pr_warn("Unable to find cpu node\n");
 				continue;
@@ -378,6 +403,15 @@ static void __init riscv_fill_hwcap_from_isa_string(unsigned long *isa2hwcap)
 			if (rc) {
 				pr_warn("Unable to find \"riscv,isa\" devicetree entry\n");
 				continue;
+=======
+			if (node) {
+				rc = of_property_read_string(node, "riscv,isa", &isa);
+				of_node_put(node);
+				if (rc) {
+					pr_warn("Unable to find \"riscv,isa\" devicetree entry\n");
+					continue;
+				}
+>>>>>>> upstream/cove-integration
 			}
 		} else {
 			rc = acpi_get_riscv_isa(rhct, cpu, &isa);
@@ -389,6 +423,7 @@ static void __init riscv_fill_hwcap_from_isa_string(unsigned long *isa2hwcap)
 
 		riscv_parse_isa_string(&this_hwcap, isainfo, isa2hwcap, isa);
 
+<<<<<<< HEAD
 		/*
 		 * These ones were as they were part of the base ISA when the
 		 * port & dt-bindings were upstreamed, and so can be set
@@ -399,6 +434,105 @@ static void __init riscv_fill_hwcap_from_isa_string(unsigned long *isa2hwcap)
 			set_bit(RISCV_ISA_EXT_ZIFENCEI, isainfo->isa);
 			set_bit(RISCV_ISA_EXT_ZICNTR, isainfo->isa);
 			set_bit(RISCV_ISA_EXT_ZIHPM, isainfo->isa);
+=======
+			switch (*ext) {
+			case 's':
+				/**
+				 * Workaround for invalid single-letter 's' & 'u'(QEMU).
+				 * No need to set the bit in riscv_isa as 's' & 'u' are
+				 * not valid ISA extensions. It works until multi-letter
+				 * extension starting with "Su" appears.
+				 */
+				if (ext[-1] != '_' && ext[1] == 'u') {
+					++isa;
+					ext_err = true;
+					break;
+				}
+				fallthrough;
+			case 'x':
+			case 'z':
+				ext_long = true;
+				/* Multi-letter extension must be delimited */
+				for (; *isa && *isa != '_'; ++isa)
+					if (unlikely(!islower(*isa)
+						     && !isdigit(*isa)))
+						ext_err = true;
+				/* Parse backwards */
+				ext_end = isa;
+				if (unlikely(ext_err))
+					break;
+				if (!isdigit(ext_end[-1]))
+					break;
+				/* Skip the minor version */
+				while (isdigit(*--ext_end))
+					;
+				if (ext_end[0] != 'p'
+				    || !isdigit(ext_end[-1])) {
+					/* Advance it to offset the pre-decrement */
+					++ext_end;
+					break;
+				}
+				/* Skip the major version */
+				while (isdigit(*--ext_end))
+					;
+				++ext_end;
+				break;
+			default:
+				if (unlikely(!islower(*ext))) {
+					ext_err = true;
+					break;
+				}
+				/* Find next extension */
+				if (!isdigit(*isa))
+					break;
+				/* Skip the minor version */
+				while (isdigit(*++isa))
+					;
+				if (*isa != 'p')
+					break;
+				if (!isdigit(*++isa)) {
+					--isa;
+					break;
+				}
+				/* Skip the major version */
+				while (isdigit(*++isa))
+					;
+				break;
+			}
+			if (*isa != '_')
+				--isa;
+
+#define SET_ISA_EXT_MAP(name, bit)						\
+			do {							\
+				if ((ext_end - ext == sizeof(name) - 1) &&	\
+				     !memcmp(ext, name, sizeof(name) - 1) &&	\
+				     riscv_isa_extension_check(bit))		\
+					set_bit(bit, this_isa);			\
+			} while (false)						\
+
+			if (unlikely(ext_err))
+				continue;
+			if (!ext_long) {
+				int nr = *ext - 'a';
+
+				if (riscv_isa_extension_check(nr)) {
+					this_hwcap |= isa2hwcap[nr];
+					set_bit(nr, this_isa);
+				}
+			} else {
+				/* sorted alphabetically */
+				SET_ISA_EXT_MAP("ssaia", RISCV_ISA_EXT_SSAIA);
+				SET_ISA_EXT_MAP("sscofpmf", RISCV_ISA_EXT_SSCOFPMF);
+				SET_ISA_EXT_MAP("sstc", RISCV_ISA_EXT_SSTC);
+				SET_ISA_EXT_MAP("smaia", RISCV_ISA_EXT_SMAIA);
+				SET_ISA_EXT_MAP("svinval", RISCV_ISA_EXT_SVINVAL);
+				SET_ISA_EXT_MAP("svpbmt", RISCV_ISA_EXT_SVPBMT);
+				SET_ISA_EXT_MAP("zbb", RISCV_ISA_EXT_ZBB);
+				SET_ISA_EXT_MAP("zicbom", RISCV_ISA_EXT_ZICBOM);
+				SET_ISA_EXT_MAP("zihintpause", RISCV_ISA_EXT_ZIHINTPAUSE);
+			}
+#undef SET_ISA_EXT_MAP
+>>>>>>> upstream/cove-integration
 		}
 
 		/*
@@ -419,6 +553,7 @@ static void __init riscv_fill_hwcap_from_isa_string(unsigned long *isa2hwcap)
 
 	if (!acpi_disabled && rhct)
 		acpi_put_table((struct acpi_table_header *)rhct);
+<<<<<<< HEAD
 }
 
 static int __init riscv_fill_hwcap_from_ext_list(unsigned long *isa2hwcap)
@@ -520,6 +655,11 @@ void __init riscv_fill_hwcap(void)
 	 * We don't support systems with F but without D, so mask those out
 	 * here.
 	 */
+=======
+
+	/* We don't support systems with F but without D, so mask those out
+	 * here. */
+>>>>>>> upstream/cove-integration
 	if ((elf_hwcap & COMPAT_HWCAP_ISA_F) && !(elf_hwcap & COMPAT_HWCAP_ISA_D)) {
 		pr_info("This kernel does not support systems with F but not D\n");
 		elf_hwcap &= ~COMPAT_HWCAP_ISA_F;

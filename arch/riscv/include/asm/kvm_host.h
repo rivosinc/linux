@@ -15,7 +15,10 @@
 #include <linux/spinlock.h>
 #include <asm/hwcap.h>
 #include <asm/kvm_aia.h>
+<<<<<<< HEAD
 #include <asm/ptrace.h>
+=======
+>>>>>>> upstream/cove-integration
 #include <asm/kvm_vcpu_fp.h>
 #include <asm/kvm_vcpu_insn.h>
 #include <asm/kvm_vcpu_sbi.h>
@@ -89,6 +92,8 @@ struct kvm_vmid {
 };
 
 struct kvm_arch {
+	unsigned long vm_type;
+
 	/* G-stage vmid */
 	struct kvm_vmid vmid;
 
@@ -101,6 +106,12 @@ struct kvm_arch {
 
 	/* AIA Guest/VM context */
 	struct kvm_aia aia;
+<<<<<<< HEAD
+=======
+
+	/* COVE guest/VM context */
+	struct kvm_cove_tvm_context *tvmc;
+>>>>>>> upstream/cove-integration
 };
 
 struct kvm_cpu_trap {
@@ -260,8 +271,12 @@ struct kvm_vcpu_arch {
 	/* Performance monitoring context */
 	struct kvm_pmu pmu_context;
 
+<<<<<<< HEAD
 	/* 'static' configurations which are set only once */
 	struct kvm_vcpu_config cfg;
+=======
+	struct kvm_cove_tvm_vcpu_context *tc;
+>>>>>>> upstream/cove-integration
 };
 
 static inline void kvm_arch_sync_events(struct kvm *kvm) {}
@@ -333,11 +348,12 @@ void kvm_riscv_gstage_update_hgatp(struct kvm_vcpu *vcpu);
 void __init kvm_riscv_gstage_mode_detect(void);
 unsigned long __init kvm_riscv_gstage_mode(void);
 int kvm_riscv_gstage_gpa_bits(void);
+unsigned long kvm_riscv_gstage_pgd_size(void);
 
 void __init kvm_riscv_gstage_vmid_detect(void);
 unsigned long kvm_riscv_gstage_vmid_bits(void);
 int kvm_riscv_gstage_vmid_init(struct kvm *kvm);
-bool kvm_riscv_gstage_vmid_ver_changed(struct kvm_vmid *vmid);
+bool kvm_riscv_gstage_vmid_ver_changed(struct kvm *kvm);
 void kvm_riscv_gstage_vmid_update(struct kvm_vcpu *vcpu);
 
 int kvm_riscv_setup_default_irq_routing(struct kvm *kvm, u32 lines);

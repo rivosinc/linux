@@ -14,10 +14,16 @@
  */
 
 #include <linux/acpi.h>
+<<<<<<< HEAD
 #include <linux/efi.h>
 #include <linux/io.h>
 #include <linux/memblock.h>
 #include <linux/pci.h>
+=======
+#include <linux/io.h>
+#include <linux/pci.h>
+#include <linux/efi.h>
+>>>>>>> upstream/cove-integration
 
 int acpi_noirq = 1;		/* skip ACPI IRQ initialization */
 int acpi_disabled = 1;
@@ -26,12 +32,19 @@ EXPORT_SYMBOL(acpi_disabled);
 int acpi_pci_disabled = 1;	/* skip ACPI PCI scan and IRQ initialization */
 EXPORT_SYMBOL(acpi_pci_disabled);
 
+<<<<<<< HEAD
+=======
+static struct acpi_madt_rintc cpu_madt_rintc[NR_CPUS];
+>>>>>>> upstream/cove-integration
 static bool param_acpi_off __initdata;
 static bool param_acpi_on __initdata;
 static bool param_acpi_force __initdata;
 
+<<<<<<< HEAD
 static struct acpi_madt_rintc cpu_madt_rintc[NR_CPUS];
 
+=======
+>>>>>>> upstream/cove-integration
 static int __init parse_acpi(char *arg)
 {
 	if (!arg)
@@ -79,16 +92,28 @@ static int __init acpi_fadt_sanity_check(void)
 	fadt = (struct acpi_table_fadt *)table;
 
 	/*
+<<<<<<< HEAD
 	 * The revision in the table header is the FADT's Major revision. The
 	 * FADT also has a minor revision, which is stored in the FADT itself.
+=======
+	 * Revision in table header is the FADT Major revision, and there
+	 * is a minor revision of FADT.
+>>>>>>> upstream/cove-integration
 	 *
 	 * TODO: Currently, we check for 6.5 as the minimum version to check
 	 * for HW_REDUCED flag. However, once RISC-V updates are released in
 	 * the ACPI spec, we need to update this check for exact minor revision
 	 */
+<<<<<<< HEAD
 	if (table->revision < 6 || (table->revision == 6 && fadt->minor_revision < 5))
 		pr_err(FW_BUG "Unsupported FADT revision %d.%d, should be 6.5+\n",
 		       table->revision, fadt->minor_revision);
+=======
+	if (table->revision < 6 || (table->revision == 6 && fadt->minor_revision < 5)) {
+		pr_err(FW_BUG "Unsupported FADT revision %d.%d, should be 6.5+\n",
+		       table->revision, fadt->minor_revision);
+	}
+>>>>>>> upstream/cove-integration
 
 	if (!(fadt->flags & ACPI_FADT_HW_REDUCED)) {
 		pr_err("FADT not ACPI hardware reduced compliant\n");
@@ -165,19 +190,37 @@ static int acpi_parse_madt_rintc(union acpi_subtable_headers *header, const unsi
 	/*
 	 * When CONFIG_SMP is disabled, mapping won't be created for
 	 * all cpus.
+<<<<<<< HEAD
 	 * CPUs more than num_possible_cpus, will be ignored.
 	 */
 	if (cpuid >= 0 && cpuid < num_possible_cpus())
+=======
+	 * CPUs more than NR_CPUS, will be ignored.
+	 */
+	if (cpuid >= 0 && cpuid < NR_CPUS)
+>>>>>>> upstream/cove-integration
 		cpu_madt_rintc[cpuid] = *rintc;
 
 	return 0;
 }
 
+<<<<<<< HEAD
+=======
+static int acpi_init_rintc_array(void)
+{
+	if (acpi_table_parse_madt(ACPI_MADT_TYPE_RINTC, acpi_parse_madt_rintc, 0) > 0)
+		return 0;
+
+	return -ENODEV;
+}
+
+>>>>>>> upstream/cove-integration
 /*
  * Instead of parsing (and freeing) the ACPI table, cache
  * the RINTC structures since they are frequently used
  * like in  cpuinfo.
  */
+<<<<<<< HEAD
 void __init acpi_init_rintc_map(void)
 {
 	if (acpi_table_parse_madt(ACPI_MADT_TYPE_RINTC, acpi_parse_madt_rintc, 0) <= 0) {
@@ -188,12 +231,35 @@ void __init acpi_init_rintc_map(void)
 
 struct acpi_madt_rintc *acpi_cpu_get_madt_rintc(int cpu)
 {
+=======
+struct acpi_madt_rintc *acpi_cpu_get_madt_rintc(int cpu)
+{
+	static bool rintc_init_done;
+
+	if (!rintc_init_done) {
+		if (acpi_init_rintc_array()) {
+			pr_err("No valid RINTC entries exist\n");
+			return NULL;
+		}
+
+		rintc_init_done = true;
+	}
+
+>>>>>>> upstream/cove-integration
 	return &cpu_madt_rintc[cpu];
 }
 
 u32 get_acpi_id_for_cpu(int cpu)
 {
+<<<<<<< HEAD
 	return acpi_cpu_get_madt_rintc(cpu)->uid;
+=======
+	struct acpi_madt_rintc *rintc = acpi_cpu_get_madt_rintc(cpu);
+
+	BUG_ON(!rintc);
+
+	return rintc->uid;
+>>>>>>> upstream/cove-integration
 }
 
 /*
@@ -205,7 +271,11 @@ void __init __iomem *__acpi_map_table(unsigned long phys, unsigned long size)
 	if (!size)
 		return NULL;
 
+<<<<<<< HEAD
 	return early_ioremap(phys, size);
+=======
+	return early_memremap(phys, size);
+>>>>>>> upstream/cove-integration
 }
 
 void __init __acpi_unmap_table(void __iomem *map, unsigned long size)
@@ -213,6 +283,7 @@ void __init __acpi_unmap_table(void __iomem *map, unsigned long size)
 	if (!map || !size)
 		return;
 
+<<<<<<< HEAD
 	early_iounmap(map, size);
 }
 
@@ -301,6 +372,14 @@ void __iomem *acpi_os_ioremap(acpi_physical_address phys, acpi_size size)
 	}
 
 	return ioremap_prot(phys, size, pgprot_val(prot));
+=======
+	early_memunmap(map, size);
+}
+
+void *acpi_os_ioremap(acpi_physical_address phys, acpi_size size)
+{
+	return memremap(phys, size, MEMREMAP_WB);
+>>>>>>> upstream/cove-integration
 }
 
 #ifdef CONFIG_PCI

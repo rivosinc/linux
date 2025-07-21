@@ -27,7 +27,10 @@ void __init time_init(void)
 		cpu = of_find_node_by_path("/cpus");
 		if (!cpu || of_property_read_u32(cpu, "timebase-frequency", &prop))
 			panic("RISC-V system with no 'timebase-frequency' in DTS\n");
+<<<<<<< HEAD
 
+=======
+>>>>>>> upstream/cove-integration
 		of_node_put(cpu);
 		riscv_timebase = prop;
 		of_clk_init(NULL);
@@ -35,7 +38,10 @@ void __init time_init(void)
 		status = acpi_get_table(ACPI_SIG_RHCT, 0, (struct acpi_table_header **)&rhct);
 		if (ACPI_FAILURE(status))
 			panic("RISC-V ACPI system with no RHCT table\n");
+<<<<<<< HEAD
 
+=======
+>>>>>>> upstream/cove-integration
 		riscv_timebase = rhct->time_base_freq;
 		acpi_put_table((struct acpi_table_header *)rhct);
 	}

@@ -15,7 +15,10 @@
 #include <linux/vmalloc.h>
 #include <linux/kvm_host.h>
 #include <linux/sched/signal.h>
+#include <asm/kvm_nacl.h>
 #include <asm/csr.h>
+#include <asm/kvm_host.h>
+#include <asm/kvm_cove.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 
@@ -356,6 +359,11 @@ int kvm_riscv_gstage_ioremap(struct kvm *kvm, gpa_t gpa,
 		.gfp_zero = __GFP_ZERO,
 	};
 
+	if (is_cove_vm(kvm)) {
+		kvm_debug("%s: KVM doesn't support ioremap for TVM io regions\n", __func__);
+		return -EPERM;
+	}
+
 	end = (gpa + size + PAGE_SIZE - 1) & PAGE_MASK;
 	pfn = __phys_to_pfn(hpa);
 
@@ -385,6 +393,10 @@ out:
 
 void kvm_riscv_gstage_iounmap(struct kvm *kvm, gpa_t gpa, unsigned long size)
 {
+	/* KVM doesn't map any IO region in gstage for TVM */
+	if (is_cove_vm(kvm))
+		return;
+
 	spin_lock(&kvm->mmu_lock);
 	gstage_unmap_range(kvm, gpa, size, false);
 	spin_unlock(&kvm->mmu_lock);
@@ -425,6 +437,10 @@ void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
 	gpa_t gpa = slot->base_gfn << PAGE_SHIFT;
 	phys_addr_t size = slot->npages << PAGE_SHIFT;
 
+	/* No need to unmap gstage as it is managed by TSM */
+	if (is_cove_vm(kvm))
+		return;
+
 	spin_lock(&kvm->mmu_lock);
 	gstage_unmap_range(kvm, gpa, size, false);
 	spin_unlock(&kvm->mmu_lock);
@@ -435,6 +451,9 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 				const struct kvm_memory_slot *new,
 				enum kvm_mr_change change)
 {
+	/* We don't support dirty logging for CoVE guests yet */
+	if (is_cove_vm(kvm))
+		return;
 	/*
 	 * At this point memslot has been committed and there is an
 	 * allocated dirty_bitmap[], dirty pages will be tracked while
@@ -474,6 +493,11 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 
 	mmap_read_lock(current->mm);
 
+	if (is_cove_vm(kvm)) {
+		ret = kvm_riscv_cove_vm_add_memreg(kvm, base_gpa, size);
+		if (ret)
+			return ret;
+	}
 	/*
 	 * A memory region could potentially cover multiple VMAs, and
 	 * any holes between them, so iterate over all of them to find
@@ -541,7 +565,7 @@ out:
 
 bool kvm_unmap_gfn_range(struct kvm *kvm, struct kvm_gfn_range *range)
 {
-	if (!kvm->arch.pgd)
+	if (!kvm->arch.pgd || is_cove_vm(kvm))
 		return false;
 
 	gstage_unmap_range(kvm, range->start << PAGE_SHIFT,
@@ -555,7 +579,7 @@ bool kvm_set_spte_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
 	int ret;
 	kvm_pfn_t pfn = pte_pfn(range->arg.pte);
 
-	if (!kvm->arch.pgd)
+	if (!kvm->arch.pgd || is_cove_vm(kvm))
 		return false;
 
 	WARN_ON(range->end - range->start != 1);
@@ -576,7 +600,7 @@ bool kvm_age_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
 	u32 ptep_level = 0;
 	u64 size = (range->end - range->start) << PAGE_SHIFT;
 
-	if (!kvm->arch.pgd)
+	if (!kvm->arch.pgd || is_cove_vm(kvm))
 		return false;
 
 	WARN_ON(size != PAGE_SIZE && size != PMD_SIZE && size != PUD_SIZE);
@@ -594,7 +618,7 @@ bool kvm_test_age_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
 	u32 ptep_level = 0;
 	u64 size = (range->end - range->start) << PAGE_SHIFT;
 
-	if (!kvm->arch.pgd)
+	if (!kvm->arch.pgd || is_cove_vm(kvm))
 		return false;
 
 	WARN_ON(size != PAGE_SIZE && size != PMD_SIZE && size != PUD_SIZE);
@@ -731,6 +755,10 @@ void kvm_riscv_gstage_free_pgd(struct kvm *kvm)
 {
 	void *pgd = NULL;
 
+	/* PGD is mapped in TSM */
+	if (is_cove_vm(kvm))
+		return;
+
 	spin_lock(&kvm->mmu_lock);
 	if (kvm->arch.pgd) {
 		gstage_unmap_range(kvm, 0UL, gstage_gpa_size, false);
@@ -749,10 +777,17 @@ void kvm_riscv_gstage_update_hgatp(struct kvm_vcpu *vcpu)
 	unsigned long hgatp = gstage_mode;
 	struct kvm_arch *k = &vcpu->kvm->arch;
 
+<<<<<<< HEAD
+=======
+	/* COVE VCPU hgatp is managed by TSM. */
+	if (is_cove_vcpu(vcpu))
+		return;
+
+>>>>>>> upstream/cove-integration
 	hgatp |= (READ_ONCE(k->vmid.vmid) << HGATP_VMID_SHIFT) & HGATP_VMID;
 	hgatp |= (k->pgd_phys >> PAGE_SHIFT) & HGATP_PPN;
 
-	csr_write(CSR_HGATP, hgatp);
+	nacl_csr_write(CSR_HGATP, hgatp);
 
 	if (!kvm_riscv_gstage_vmid_bits())
 		kvm_riscv_local_hfence_gvma_all();
@@ -790,4 +825,9 @@ unsigned long __init kvm_riscv_gstage_mode(void)
 int kvm_riscv_gstage_gpa_bits(void)
 {
 	return gstage_gpa_bits;
+}
+
+unsigned long kvm_riscv_gstage_pgd_size(void)
+{
+	return gstage_pgd_size;
 }

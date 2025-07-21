@@ -36,11 +36,19 @@ static void riscv_clock_event_stop(void)
 {
 	if (static_branch_likely(&riscv_sstc_available)) {
 		csr_write(CSR_STIMECMP, ULONG_MAX);
+<<<<<<< HEAD
 		if (IS_ENABLED(CONFIG_32BIT))
 			csr_write(CSR_STIMECMPH, ULONG_MAX);
 	} else {
 		sbi_set_timer(U64_MAX);
 	}
+=======
+#if defined(CONFIG_32BIT)
+		csr_write(CSR_STIMECMPH, ULONG_MAX);
+#endif
+	} else
+		sbi_set_timer(U64_MAX);
+>>>>>>> upstream/cove-integration
 }
 
 static int riscv_clock_next_event(unsigned long delta,
@@ -192,7 +200,17 @@ static int __init riscv_timer_init_dt(struct device_node *n)
 {
 	int cpuid, error;
 	unsigned long hartid;
+<<<<<<< HEAD
 	struct device_node *child;
+=======
+	struct device_node *node;
+
+	node = of_find_compatible_node(NULL, NULL, "riscv,timer");
+	if (node) {
+		of_node_put(node);
+		return -ENODEV;
+	}
+>>>>>>> upstream/cove-integration
 
 	error = riscv_of_processor_hartid(n, &hartid);
 	if (error < 0) {
@@ -210,6 +228,7 @@ static int __init riscv_timer_init_dt(struct device_node *n)
 	if (cpuid != smp_processor_id())
 		return 0;
 
+<<<<<<< HEAD
 	child = of_find_compatible_node(NULL, NULL, "riscv,timer");
 	if (child) {
 		riscv_timer_cannot_wake_cpu = of_property_read_bool(child,
@@ -217,11 +236,14 @@ static int __init riscv_timer_init_dt(struct device_node *n)
 		of_node_put(child);
 	}
 
+=======
+>>>>>>> upstream/cove-integration
 	return riscv_timer_init_common();
 }
 
 TIMER_OF_DECLARE(riscv_timer, "riscv", riscv_timer_init_dt);
 
+<<<<<<< HEAD
 #ifdef CONFIG_ACPI
 static int __init riscv_timer_acpi_init(struct acpi_table_header *table)
 {
@@ -229,6 +251,20 @@ static int __init riscv_timer_acpi_init(struct acpi_table_header *table)
 
 	riscv_timer_cannot_wake_cpu = rhct->flags & ACPI_RHCT_TIMER_CANNOT_WAKEUP_CPU;
 
+=======
+static int __init riscv_timer_init_dt2(struct device_node *n)
+{
+	riscv_timer_cannot_wake_cpu = of_property_read_bool(n,
+					"riscv,timer-cannot-wake-cpu");
+
+	return riscv_timer_init_common();
+}
+TIMER_OF_DECLARE(riscv_timer2, "riscv,timer", riscv_timer_init_dt2);
+
+#ifdef CONFIG_ACPI
+static int __init riscv_timer_acpi_init(struct acpi_table_header *table)
+{
+>>>>>>> upstream/cove-integration
 	return riscv_timer_init_common();
 }
 

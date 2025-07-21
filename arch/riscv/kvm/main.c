@@ -10,9 +10,15 @@
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/kvm_host.h>
+<<<<<<< HEAD
 #include <asm/csr.h>
 #include <asm/cpufeature.h>
+=======
+#include <asm/hwcap.h>
+#include <asm/kvm_nacl.h>
+>>>>>>> upstream/cove-integration
 #include <asm/sbi.h>
+#include <asm/kvm_cove.h>
 
 long kvm_arch_dev_ioctl(struct file *filp,
 			unsigned int ioctl, unsigned long arg)
@@ -22,7 +28,21 @@ long kvm_arch_dev_ioctl(struct file *filp,
 
 int kvm_arch_hardware_enable(void)
 {
+	int rc;
 	unsigned long hideleg, hedeleg;
+
+	rc = kvm_riscv_nacl_enable();
+	if (rc)
+		return rc;
+
+	/*
+	 * We just need to invoke aia enable for CoVE if host is in VS mode
+	 * However, if the host is running in HS mode, we need to initialize
+	 * other CSRs as well for legacy VMs.
+	 * TODO: Handle host in HS mode use case.
+	 */
+	if (unlikely(kvm_riscv_cove_enabled()))
+		goto enable_aia;
 
 	hedeleg = 0;
 	hedeleg |= (1UL << EXC_INST_MISALIGNED);
@@ -44,6 +64,10 @@ int kvm_arch_hardware_enable(void)
 
 	csr_write(CSR_HVIP, 0);
 
+<<<<<<< HEAD
+=======
+enable_aia:
+>>>>>>> upstream/cove-integration
 	kvm_riscv_aia_enable();
 
 	return 0;
@@ -53,6 +77,11 @@ void kvm_arch_hardware_disable(void)
 {
 	kvm_riscv_aia_disable();
 
+<<<<<<< HEAD
+=======
+	if (unlikely(kvm_riscv_cove_enabled()))
+		goto disable_nacl;
+>>>>>>> upstream/cove-integration
 	/*
 	 * After clearing the hideleg CSR, the host kernel will receive
 	 * spurious interrupts if hvip CSR has pending interrupts and the
@@ -63,11 +92,18 @@ void kvm_arch_hardware_disable(void)
 	csr_write(CSR_HVIP, 0);
 	csr_write(CSR_HEDELEG, 0);
 	csr_write(CSR_HIDELEG, 0);
+
+disable_nacl:
+	kvm_riscv_nacl_disable();
 }
 
 static int __init riscv_kvm_init(void)
 {
 	int rc;
+<<<<<<< HEAD
+=======
+	char slist[64];
+>>>>>>> upstream/cove-integration
 	const char *str;
 
 	if (!riscv_isa_extension_available(NULL, h)) {
@@ -80,20 +116,75 @@ static int __init riscv_kvm_init(void)
 		return -ENODEV;
 	}
 
+<<<<<<< HEAD
 	if (!sbi_probe_extension(SBI_EXT_RFENCE)) {
 		kvm_info("require SBI RFENCE extension\n");
 		return -ENODEV;
 	}
+=======
+	rc = kvm_riscv_nacl_init();
+	if (rc && rc != -ENODEV)
+		return rc;
+
+	kvm_riscv_cove_init();
+>>>>>>> upstream/cove-integration
 
 	kvm_riscv_gstage_mode_detect();
 
 	kvm_riscv_gstage_vmid_detect();
 
 	rc = kvm_riscv_aia_init();
+<<<<<<< HEAD
 	if (rc && rc != -ENODEV)
 		return rc;
+=======
+	if (rc && rc != -ENODEV) {
+		kvm_riscv_nacl_exit();
+		return rc;
+	}
+
+	/* TVM don't need RFENCE extension as hardware imsic support is mandatory for TVMs
+	 * TODO: This check should happen later if HW_ACCEL mode is not set as RFENCE
+	 * should only be mandatory in that case.
+	 */
+	if (!kvm_riscv_cove_enabled() && sbi_probe_extension(SBI_EXT_RFENCE) <= 0) {
+		kvm_info("require SBI RFENCE extension\n");
+		return -ENODEV;
+	}
+>>>>>>> upstream/cove-integration
 
 	kvm_info("hypervisor extension available\n");
+
+	if (kvm_riscv_nacl_available()) {
+		rc = 0;
+		slist[0] = '\0';
+		if (kvm_riscv_nacl_sync_csr_available()) {
+			if (rc)
+				strcat(slist, ", ");
+			strcat(slist, "sync_csr");
+			rc++;
+		}
+		if (kvm_riscv_nacl_sync_hfence_available()) {
+			if (rc)
+				strcat(slist, ", ");
+			strcat(slist, "sync_hfence");
+			rc++;
+		}
+		if (kvm_riscv_nacl_sync_sret_available()) {
+			if (rc)
+				strcat(slist, ", ");
+			strcat(slist, "sync_sret");
+			rc++;
+		}
+		if (kvm_riscv_nacl_autoswap_csr_available()) {
+			if (rc)
+				strcat(slist, ", ");
+			strcat(slist, "autoswap_csr");
+			rc++;
+		}
+		kvm_info("using SBI nested acceleration with %s\n",
+			 (rc) ? slist : "no features");
+	}
 
 	switch (kvm_riscv_gstage_mode()) {
 	case HGATP_MODE_SV32X4:
@@ -122,6 +213,10 @@ static int __init riscv_kvm_init(void)
 	rc = kvm_init(sizeof(struct kvm_vcpu), 0, THIS_MODULE);
 	if (rc) {
 		kvm_riscv_aia_exit();
+<<<<<<< HEAD
+=======
+		kvm_riscv_nacl_exit();
+>>>>>>> upstream/cove-integration
 		return rc;
 	}
 
@@ -133,6 +228,11 @@ static void __exit riscv_kvm_exit(void)
 {
 	kvm_riscv_aia_exit();
 
+<<<<<<< HEAD
+=======
+	kvm_riscv_nacl_exit();
+
+>>>>>>> upstream/cove-integration
 	kvm_exit();
 }
 module_exit(riscv_kvm_exit);

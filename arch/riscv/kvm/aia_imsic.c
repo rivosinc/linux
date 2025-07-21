@@ -7,15 +7,24 @@
  *	Anup Patel <apatel@ventanamicro.com>
  */
 
+<<<<<<< HEAD
 #include <linux/atomic.h>
 #include <linux/bitmap.h>
+=======
+#include <linux/bitmap.h>
+#include <linux/irqchip/riscv-imsic.h>
+>>>>>>> upstream/cove-integration
 #include <linux/kvm_host.h>
 #include <linux/math.h>
 #include <linux/spinlock.h>
 #include <linux/swab.h>
 #include <kvm/iodev.h>
 #include <asm/csr.h>
+<<<<<<< HEAD
 #include <asm/kvm_aia_imsic.h>
+=======
+#include <asm/kvm_cove.h>
+>>>>>>> upstream/cove-integration
 
 #define IMSIC_MAX_EIX	(IMSIC_MAX_ID / BITS_PER_TYPE(u64))
 
@@ -92,7 +101,11 @@ static unsigned long imsic_eix_read(int ireg)
 	switch (ireg) {
 	imsic_read_switchcase_64(IMSIC_EIP0)
 	imsic_read_switchcase_64(IMSIC_EIE0)
+<<<<<<< HEAD
 	}
+=======
+	};
+>>>>>>> upstream/cove-integration
 
 	return 0;
 }
@@ -132,7 +145,11 @@ static unsigned long imsic_eix_swap(int ireg, unsigned long val)
 	switch (ireg) {
 	imsic_swap_switchcase_64(IMSIC_EIP0, val)
 	imsic_swap_switchcase_64(IMSIC_EIE0, val)
+<<<<<<< HEAD
 	}
+=======
+	};
+>>>>>>> upstream/cove-integration
 
 	return 0;
 }
@@ -171,7 +188,11 @@ static void imsic_eix_write(int ireg, unsigned long val)
 	switch (ireg) {
 	imsic_write_switchcase_64(IMSIC_EIP0, val)
 	imsic_write_switchcase_64(IMSIC_EIE0, val)
+<<<<<<< HEAD
 	}
+=======
+	};
+>>>>>>> upstream/cove-integration
 }
 
 #define imsic_vs_csr_set(__c, __v)		\
@@ -208,11 +229,19 @@ static void imsic_eix_set(int ireg, unsigned long val)
 	switch (ireg) {
 	imsic_set_switchcase_64(IMSIC_EIP0, val)
 	imsic_set_switchcase_64(IMSIC_EIE0, val)
+<<<<<<< HEAD
 	}
 }
 
 static unsigned long imsic_mrif_atomic_rmw(struct imsic_mrif *mrif,
 					   unsigned long *ptr,
+=======
+	};
+}
+
+static unsigned long imsic_mrif_atomic_rmw(struct imsic_mrif *mrif,
+					   volatile unsigned long *ptr,
+>>>>>>> upstream/cove-integration
 					   unsigned long new_val,
 					   unsigned long wr_mask)
 {
@@ -232,10 +261,17 @@ static unsigned long imsic_mrif_atomic_rmw(struct imsic_mrif *mrif,
 }
 
 static unsigned long imsic_mrif_atomic_or(struct imsic_mrif *mrif,
+<<<<<<< HEAD
 					  unsigned long *ptr,
 					  unsigned long val)
 {
 	return atomic_long_fetch_or(val, (atomic_long_t *)ptr);
+=======
+					  volatile unsigned long *ptr,
+					  unsigned long val)
+{
+	return arch_atomic_long_fetch_or(val, (atomic_long_t *)ptr);
+>>>>>>> upstream/cove-integration
 }
 
 #define imsic_mrif_atomic_write(__mrif, __ptr, __new_val)	\
@@ -294,7 +330,11 @@ static int imsic_mrif_isel_check(u32 nr_eix, unsigned long isel)
 		break;
 	default:
 		return -ENOENT;
+<<<<<<< HEAD
 	}
+=======
+	};
+>>>>>>> upstream/cove-integration
 #ifndef CONFIG_32BIT
 	if (num & 0x1)
 		return -EINVAL;
@@ -324,7 +364,11 @@ static int imsic_mrif_rmw(struct imsic_mrif *mrif, u32 nr_eix,
 		break;
 	case IMSIC_EIP0 ... IMSIC_EIP63:
 	case IMSIC_EIE0 ... IMSIC_EIE63:
+<<<<<<< HEAD
 		if (isel >= IMSIC_EIP0 && isel <= IMSIC_EIP63) {
+=======
+		if (IMSIC_EIP0 <= isel && isel <= IMSIC_EIP63) {
+>>>>>>> upstream/cove-integration
 			pend = true;
 			num = isel - IMSIC_EIP0;
 		} else {
@@ -352,7 +396,11 @@ static int imsic_mrif_rmw(struct imsic_mrif *mrif, u32 nr_eix,
 		break;
 	default:
 		return -ENOENT;
+<<<<<<< HEAD
 	}
+=======
+	};
+>>>>>>> upstream/cove-integration
 
 	if (val)
 		*val = old_val;
@@ -382,7 +430,11 @@ static void imsic_vsfile_local_read(void *data)
 	csr_write(CSR_HSTATUS, new_hstatus);
 
 	/*
+<<<<<<< HEAD
 	 * We don't use imsic_mrif_atomic_xyz() functions to store
+=======
+	 * We don't use imsic_mrif_atomic_xyz() functions to store values
+>>>>>>> upstream/cove-integration
 	 * values in MRIF because imsic_vsfile_read() is always called
 	 * with pointer to temporary MRIF on stack.
 	 */
@@ -533,11 +585,19 @@ static void imsic_vsfile_local_clear(int vsfile_hgei, u32 nr_eix)
 	imsic_vs_csr_write(IMSIC_EIDELIVERY, 0);
 	imsic_vs_csr_write(IMSIC_EITHRESHOLD, 0);
 	for (i = 0; i < nr_eix; i++) {
+<<<<<<< HEAD
 		imsic_eix_write(IMSIC_EIP0 + i * 2, 0);
 		imsic_eix_write(IMSIC_EIE0 + i * 2, 0);
 #ifdef CONFIG_32BIT
 		imsic_eix_write(IMSIC_EIP0 + i * 2 + 1, 0);
 		imsic_eix_write(IMSIC_EIE0 + i * 2 + 1, 0);
+=======
+		 imsic_eix_write(IMSIC_EIP0 + i * 2, 0);
+		 imsic_eix_write(IMSIC_EIE0 + i * 2, 0);
+#ifdef CONFIG_32BIT
+		 imsic_eix_write(IMSIC_EIP0 + i * 2 + 1, 0);
+		 imsic_eix_write(IMSIC_EIE0 + i * 2 + 1, 0);
+>>>>>>> upstream/cove-integration
 #endif
 	}
 
@@ -558,7 +618,11 @@ static void imsic_vsfile_local_update(int vsfile_hgei, u32 nr_eix,
 
 	/*
 	 * We don't use imsic_mrif_atomic_xyz() functions to read values
+<<<<<<< HEAD
 	 * from MRIF in this function because it is always called with
+=======
+	 * from MRIF in this function because is is always called with
+>>>>>>> upstream/cove-integration
 	 * pointer to temporary MRIF on stack.
 	 */
 
@@ -584,7 +648,11 @@ static void imsic_vsfile_local_update(int vsfile_hgei, u32 nr_eix,
 	csr_write(CSR_VSISELECT, old_vsiselect);
 }
 
+<<<<<<< HEAD
 static void imsic_vsfile_cleanup(struct imsic *imsic)
+=======
+static void imsic_vsfile_cleanup(struct kvm_vcpu *vcpu, struct imsic *imsic)
+>>>>>>> upstream/cove-integration
 {
 	int old_vsfile_hgei, old_vsfile_cpu;
 	unsigned long flags;
@@ -605,8 +673,17 @@ static void imsic_vsfile_cleanup(struct imsic *imsic)
 
 	memset(imsic->swfile, 0, sizeof(*imsic->swfile));
 
+<<<<<<< HEAD
 	if (old_vsfile_cpu >= 0)
 		kvm_riscv_aia_free_hgei(old_vsfile_cpu, old_vsfile_hgei);
+=======
+	if (old_vsfile_cpu >= 0) {
+		if (is_cove_vcpu(vcpu))
+			kvm_riscv_cove_vcpu_imsic_unbind(vcpu, old_vsfile_cpu);
+
+		kvm_riscv_aia_free_hgei(old_vsfile_cpu, old_vsfile_hgei);
+	}
+>>>>>>> upstream/cove-integration
 }
 
 static void imsic_swfile_extirq_update(struct kvm_vcpu *vcpu)
@@ -685,6 +762,7 @@ void kvm_riscv_vcpu_aia_imsic_release(struct kvm_vcpu *vcpu)
 		return;
 
 	/*
+<<<<<<< HEAD
 	 * At this point, all interrupt producers are still using
 	 * the old IMSIC VS-file so we first re-direct all interrupt
 	 * producers.
@@ -710,6 +788,36 @@ void kvm_riscv_vcpu_aia_imsic_release(struct kvm_vcpu *vcpu)
 
 	/* Update register state in IMSIC SW-file */
 	imsic_swfile_update(vcpu, &tmrif);
+=======
+	 * At this point, all interrupt producers are still using the
+	 * the old IMSIC VS-file so we first re-direct all interrupt
+	 * producers.
+	 */
+	if (!is_cove_vcpu(vcpu)) {
+		/* Purge the G-stage mapping */
+		kvm_riscv_gstage_iounmap(vcpu->kvm,
+					 vcpu->arch.aia_context.imsic_addr,
+					 IMSIC_MMIO_PAGE_SZ);
+
+		/* TODO: Purge the IOMMU mapping ??? */
+
+		/*
+		 * At this point, all interrupt producers have been re-directed
+		 * to somewhere else so we move register state from the old IMSIC
+		 * VS-file to the IMSIC SW-file.
+		 */
+
+		/* Read and clear register state from old IMSIC VS-file */
+		memset(&tmrif, 0, sizeof(tmrif));
+		imsic_vsfile_read(old_vsfile_hgei, old_vsfile_cpu, imsic->nr_hw_eix,
+				  true, &tmrif);
+
+		/* Update register state in IMSIC SW-file */
+		imsic_swfile_update(vcpu, &tmrif);
+	} else {
+		kvm_riscv_cove_vcpu_imsic_unbind(vcpu, old_vsfile_cpu);
+	}
+>>>>>>> upstream/cove-integration
 
 	/* Free-up old IMSIC VS-file */
 	kvm_riscv_aia_free_hgei(old_vsfile_cpu, old_vsfile_hgei);
@@ -748,7 +856,11 @@ int kvm_riscv_vcpu_aia_imsic_update(struct kvm_vcpu *vcpu)
 		/* For HW acceleration mode, we can't continue */
 		if (kvm->arch.aia.mode == KVM_DEV_RISCV_AIA_MODE_HWACCEL) {
 			run->fail_entry.hardware_entry_failure_reason =
+<<<<<<< HEAD
 								CSR_HSTATUS;
+=======
+					KVM_EXIT_FAIL_ENTRY_IMSIC_FILE_UNAVAILABLE;
+>>>>>>> upstream/cove-integration
 			run->fail_entry.cpu = vcpu->cpu;
 			run->exit_reason = KVM_EXIT_FAIL_ENTRY;
 			return 0;
@@ -763,6 +875,7 @@ int kvm_riscv_vcpu_aia_imsic_update(struct kvm_vcpu *vcpu)
 	}
 	new_vsfile_hgei = ret;
 
+<<<<<<< HEAD
 	/*
 	 * At this point, all interrupt producers are still using
 	 * to the old IMSIC VS-file so we first move all interrupt
@@ -779,6 +892,26 @@ int kvm_riscv_vcpu_aia_imsic_update(struct kvm_vcpu *vcpu)
 	if (ret)
 		goto fail_free_vsfile_hgei;
 
+=======
+	/* TSM only maintains the gstage mapping. Skip vsfile updates & ioremap */
+	if (!is_cove_vcpu(vcpu)) {
+		/*
+		 * At this point, all interrupt producers are still using
+		 * to the old IMSIC VS-file so we first move all interrupt
+		 * producers to the new IMSIC VS-file.
+		 */
+
+		/* Zero-out new IMSIC VS-file */
+		imsic_vsfile_local_clear(new_vsfile_hgei, imsic->nr_hw_eix);
+
+		/* Update G-stage mapping for the new IMSIC VS-file */
+		ret = kvm_riscv_gstage_ioremap(kvm, vcpu->arch.aia_context.imsic_addr,
+					       new_vsfile_pa, IMSIC_MMIO_PAGE_SZ,
+					       true, true);
+		if (ret)
+			goto fail_free_vsfile_hgei;
+	}
+>>>>>>> upstream/cove-integration
 	/* TODO: Update the IOMMU mapping ??? */
 
 	/* Update new IMSIC VS-file details in IMSIC context */
@@ -789,12 +922,39 @@ int kvm_riscv_vcpu_aia_imsic_update(struct kvm_vcpu *vcpu)
 	imsic->vsfile_pa = new_vsfile_pa;
 	write_unlock_irqrestore(&imsic->vsfile_lock, flags);
 
+<<<<<<< HEAD
+=======
+	/* Now bind the new vsfile for the TVMs */
+	if (is_cove_vcpu(vcpu) && vcpu->arch.tc) {
+		vcpu->arch.tc->imsic.vsfile_hgei = new_vsfile_hgei;
+		if (old_vsfile_cpu >= 0) {
+			if (vcpu->arch.tc->imsic.bound) {
+				ret = kvm_riscv_cove_vcpu_imsic_rebind(vcpu, old_vsfile_cpu);
+				if (ret) {
+					kvm_err("imsic rebind failed for vcpu %d ret %d\n",
+						 vcpu->vcpu_idx, ret);
+					goto fail_free_vsfile_hgei;
+				}
+			}
+			kvm_riscv_aia_free_hgei(old_vsfile_cpu, old_vsfile_hgei);
+		} else {
+			/* Bind if it is not a migration case */
+			vcpu->arch.tc->imsic.bind_required = true;
+		}
+		/* Skip the oldvsfile and swfile update process as it is managed by TSM */
+		goto done;
+	}
+
+>>>>>>> upstream/cove-integration
 	/*
 	 * At this point, all interrupt producers have been moved
 	 * to the new IMSIC VS-file so we move register state from
 	 * the old IMSIC VS/SW-file to the new IMSIC VS-file.
 	 */
+<<<<<<< HEAD
 
+=======
+>>>>>>> upstream/cove-integration
 	memset(&tmrif, 0, sizeof(tmrif));
 	if (old_vsfile_cpu >= 0) {
 		/* Read and clear register state from old IMSIC VS-file */
@@ -947,6 +1107,10 @@ int kvm_riscv_vcpu_aia_imsic_inject(struct kvm_vcpu *vcpu,
 	unsigned long flags;
 	struct imsic_mrif_eix *eix;
 	struct imsic *imsic = vcpu->arch.aia_context.imsic_state;
+<<<<<<< HEAD
+=======
+	int ret;
+>>>>>>> upstream/cove-integration
 
 	/* We only emulate one IMSIC MMIO page for each Guest VCPU */
 	if (!imsic || !iid || guest_index ||
@@ -961,7 +1125,18 @@ int kvm_riscv_vcpu_aia_imsic_inject(struct kvm_vcpu *vcpu,
 	read_lock_irqsave(&imsic->vsfile_lock, flags);
 
 	if (imsic->vsfile_cpu >= 0) {
+<<<<<<< HEAD
 		writel(iid, imsic->vsfile_va + IMSIC_MMIO_SETIPNUM_LE);
+=======
+		/* TSM can only inject the external interrupt if it is allowed by the guest */
+		if (is_cove_vcpu(vcpu)) {
+			ret = kvm_riscv_cove_vcpu_inject_interrupt(vcpu, iid);
+			if (ret)
+				kvm_err("External interrupt %d injection failed\n", iid);
+		} else {
+			writel(iid, imsic->vsfile_va + IMSIC_MMIO_SETIPNUM_LE);
+		}
+>>>>>>> upstream/cove-integration
 		kvm_vcpu_kick(vcpu);
 	} else {
 		eix = &imsic->swfile->eix[iid / BITS_PER_TYPE(u64)];
@@ -1040,6 +1215,20 @@ int kvm_riscv_vcpu_aia_imsic_init(struct kvm_vcpu *vcpu)
 	imsic->swfile = page_to_virt(swfile_page);
 	imsic->swfile_pa = page_to_phys(swfile_page);
 
+<<<<<<< HEAD
+=======
+	/* No need to setup iodev ops for TVMs. Swfile will also not be used for
+	 * TVMs. However, allocate it for now as to avoid different path during
+	 * free.
+	 */
+	if (is_cove_vcpu(vcpu)) {
+		ret = kvm_riscv_cove_vcpu_imsic_addr(vcpu);
+		if (ret)
+			goto fail_free_swfile;
+		return 0;
+	}
+
+>>>>>>> upstream/cove-integration
 	/* Setup IO device */
 	kvm_iodevice_init(&imsic->iodev, &imsic_iodoev_ops);
 	mutex_lock(&kvm->slots_lock);
@@ -1070,7 +1259,11 @@ void kvm_riscv_vcpu_aia_imsic_cleanup(struct kvm_vcpu *vcpu)
 	if (!imsic)
 		return;
 
+<<<<<<< HEAD
 	imsic_vsfile_cleanup(imsic);
+=======
+	imsic_vsfile_cleanup(vcpu, imsic);
+>>>>>>> upstream/cove-integration
 
 	mutex_lock(&kvm->slots_lock);
 	kvm_io_bus_unregister_dev(kvm, KVM_MMIO_BUS, &imsic->iodev);

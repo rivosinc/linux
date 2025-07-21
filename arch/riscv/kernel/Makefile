@@ -100,5 +100,9 @@ obj-$(CONFIG_COMPAT)		+= compat_syscall_table.o
 obj-$(CONFIG_COMPAT)		+= compat_signal.o
 obj-$(CONFIG_COMPAT)		+= compat_vdso/
 
+<<<<<<< HEAD
 obj-$(CONFIG_64BIT)		+= pi/
 obj-$(CONFIG_ACPI)		+= acpi.o
+=======
+obj-$(CONFIG_ACPI)              += acpi.o
+>>>>>>> upstream/cove-integration

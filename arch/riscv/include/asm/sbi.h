@@ -31,6 +31,13 @@ enum sbi_ext_id {
 	SBI_EXT_SRST = 0x53525354,
 	SBI_EXT_PMU = 0x504D55,
 	SBI_EXT_DBCN = 0x4442434E,
+<<<<<<< HEAD
+=======
+	SBI_EXT_NACL = 0x4E41434C,
+	SBI_EXT_COVH = 0x434F5648,
+	SBI_EXT_COVI = 0x434F5649,
+	SBI_EXT_COVG = 0x434F5647,
+>>>>>>> upstream/cove-integration
 
 	/* Experimentals extensions must lie within this range */
 	SBI_EXT_EXPERIMENTAL_START = 0x08000000,
@@ -243,6 +250,217 @@ enum sbi_ext_dbcn_fid {
 	SBI_EXT_DBCN_CONSOLE_WRITE_BYTE = 2,
 };
 
+<<<<<<< HEAD
+=======
+enum sbi_ext_nacl_fid {
+	SBI_EXT_NACL_PROBE_FEATURE = 0x0,
+	SBI_EXT_NACL_SETUP_SHMEM = 0x1,
+	SBI_EXT_NACL_SYNC_CSR = 0x2,
+	SBI_EXT_NACL_SYNC_HFENCE = 0x3,
+	SBI_EXT_NACL_SYNC_SRET = 0x4,
+};
+
+enum sbi_ext_nacl_feature {
+	SBI_NACL_FEAT_SYNC_CSR = 0x0,
+	SBI_NACL_FEAT_SYNC_HFENCE = 0x1,
+	SBI_NACL_FEAT_SYNC_SRET = 0x2,
+	SBI_NACL_FEAT_AUTOSWAP_CSR = 0x3,
+};
+
+#define SBI_NACL_SHMEM_ADDR_SHIFT	12
+#define SBI_NACL_SHMEM_SCRATCH_OFFSET	0x0000
+#define SBI_NACL_SHMEM_SCRATCH_SIZE	0x1000
+#define SBI_NACL_SHMEM_SRET_OFFSET	0x0000
+#define SBI_NACL_SHMEM_SRET_SIZE	0x0200
+#define SBI_NACL_SHMEM_AUTOSWAP_OFFSET	(SBI_NACL_SHMEM_SRET_OFFSET + \
+					 SBI_NACL_SHMEM_SRET_SIZE)
+#define SBI_NACL_SHMEM_AUTOSWAP_SIZE	0x0080
+#define SBI_NACL_SHMEM_UNUSED_OFFSET	(SBI_NACL_SHMEM_AUTOSWAP_OFFSET + \
+					 SBI_NACL_SHMEM_AUTOSWAP_SIZE)
+#define SBI_NACL_SHMEM_UNUSED_SIZE	0x0580
+#define SBI_NACL_SHMEM_HFENCE_OFFSET	(SBI_NACL_SHMEM_UNUSED_OFFSET + \
+					 SBI_NACL_SHMEM_UNUSED_SIZE)
+#define SBI_NACL_SHMEM_HFENCE_SIZE	0x0780
+#define SBI_NACL_SHMEM_DBITMAP_OFFSET	(SBI_NACL_SHMEM_HFENCE_OFFSET + \
+					 SBI_NACL_SHMEM_HFENCE_SIZE)
+#define SBI_NACL_SHMEM_DBITMAP_SIZE	0x0080
+#define SBI_NACL_SHMEM_CSR_OFFSET	(SBI_NACL_SHMEM_DBITMAP_OFFSET + \
+					 SBI_NACL_SHMEM_DBITMAP_SIZE)
+#define SBI_NACL_SHMEM_CSR_SIZE		((__riscv_xlen / 8) * 1024)
+#define SBI_NACL_SHMEM_SIZE		(SBI_NACL_SHMEM_CSR_OFFSET + \
+					 SBI_NACL_SHMEM_CSR_SIZE)
+
+#define SBI_NACL_SHMEM_CSR_INDEX(__csr_num)	\
+		((((__csr_num) & 0xc00) >> 2) | ((__csr_num) & 0xff))
+
+#define SBI_NACL_SHMEM_HFENCE_ENTRY_SZ		((__riscv_xlen / 8) * 4)
+#define SBI_NACL_SHMEM_HFENCE_ENTRY_MAX		\
+		(SBI_NACL_SHMEM_HFENCE_SIZE /	\
+		 SBI_NACL_SHMEM_HFENCE_ENTRY_SZ)
+#define SBI_NACL_SHMEM_HFENCE_ENTRY(__num)	\
+		(SBI_NACL_SHMEM_HFENCE_OFFSET +	\
+		 (__num) * SBI_NACL_SHMEM_HFENCE_ENTRY_SZ)
+#define SBI_NACL_SHMEM_HFENCE_ENTRY_CTRL(__num)	\
+		SBI_NACL_SHMEM_HFENCE_ENTRY(__num)
+#define SBI_NACL_SHMEM_HFENCE_ENTRY_PNUM(__num)\
+		(SBI_NACL_SHMEM_HFENCE_ENTRY(__num) + (__riscv_xlen / 8))
+#define SBI_NACL_SHMEM_HFENCE_ENTRY_PCOUNT(__num)\
+		(SBI_NACL_SHMEM_HFENCE_ENTRY(__num) + \
+		 ((__riscv_xlen / 8) * 3))
+
+#if __riscv_xlen == 32
+#define SBI_NACL_SHMEM_HFENCE_CTRL_ASID_BITS	9
+#define SBI_NACL_SHMEM_HFENCE_CTRL_VMID_BITS	7
+#else
+#define SBI_NACL_SHMEM_HFENCE_CTRL_ASID_BITS	16
+#define SBI_NACL_SHMEM_HFENCE_CTRL_VMID_BITS	14
+#endif
+#define SBI_NACL_SHMEM_HFENCE_CTRL_VMID_SHIFT	\
+				SBI_NACL_SHMEM_HFENCE_CTRL_ASID_BITS
+#define SBI_NACL_SHMEM_HFENCE_CTRL_ASID_MASK	\
+		((1UL << SBI_NACL_SHMEM_HFENCE_CTRL_ASID_BITS) - 1)
+#define SBI_NACL_SHMEM_HFENCE_CTRL_VMID_MASK	\
+		((1UL << SBI_NACL_SHMEM_HFENCE_CTRL_VMID_BITS) - 1)
+
+#define SBI_NACL_SHMEM_HFENCE_CTRL_ORDER_BITS	7
+#define SBI_NACL_SHMEM_HFENCE_CTRL_ORDER_SHIFT	(__riscv_xlen - 16)
+#define SBI_NACL_SHMEM_HFENCE_CTRL_ORDER_MASK	\
+		((1UL << SBI_NACL_SHMEM_HFENCE_CTRL_ORDER_BITS) - 1)
+#define SBI_NACL_SHMEM_HFENCE_ORDER_BASE	12
+
+#define SBI_NACL_SHMEM_HFENCE_CTRL_TYPE_BITS	4
+#define SBI_NACL_SHMEM_HFENCE_CTRL_TYPE_SHIFT	(__riscv_xlen - 8)
+#define SBI_NACL_SHMEM_HFENCE_CTRL_TYPE_MASK	\
+		((1UL << SBI_NACL_SHMEM_HFENCE_CTRL_TYPE_BITS) - 1)
+
+#define SBI_NACL_SHMEM_HFENCE_TYPE_GVMA		0x0
+#define SBI_NACL_SHMEM_HFENCE_TYPE_GVMA_ALL	0x1
+#define SBI_NACL_SHMEM_HFENCE_TYPE_GVMA_VMID	0x2
+#define SBI_NACL_SHMEM_HFENCE_TYPE_GVMA_VMID_ALL 0x3
+#define SBI_NACL_SHMEM_HFENCE_TYPE_VVMA		0x4
+#define SBI_NACL_SHMEM_HFENCE_TYPE_VVMA_ALL	0x5
+#define SBI_NACL_SHMEM_HFENCE_TYPE_VVMA_ASID	0x6
+#define SBI_NACL_SHMEM_HFENCE_TYPE_VVMA_ASID_ALL 0x7
+
+#define SBI_NACL_SHMEM_HFENCE_CTRL_PEND_BITS	1
+#define SBI_NACL_SHMEM_HFENCE_CTRL_PEND_SHIFT	(__riscv_xlen - 1)
+#define SBI_NACL_SHMEM_HFENCE_CTRL_PEND_MASK	\
+		((1UL << SBI_NACL_SHMEM_HFENCE_CTRL_PEND_BITS) - 1)
+#define SBI_NACL_SHMEM_HFENCE_CTRL_PEND		\
+		(SBI_NACL_SHMEM_HFENCE_CTRL_PEND_MASK << \
+		 SBI_NACL_SHMEM_HFENCE_CTRL_PEND_SHIFT)
+
+#define SBI_NACL_SHMEM_AUTOSWAP_FLAG_HSTATUS	(1 << 0)
+#define SBI_NACL_SHMEM_AUTOSWAP_HSTATUS		((__riscv_xlen / 8) * 1)
+
+#define SBI_NACL_SHMEM_SRET_X(__i)		((__riscv_xlen / 8) * (__i))
+#define SBI_NACL_SHMEM_SRET_X_LAST		31
+
+/* SBI COVH extension data structures */
+enum sbi_ext_covh_fid {
+	SBI_EXT_COVH_TSM_GET_INFO = 0,
+	SBI_EXT_COVH_TSM_CONVERT_PAGES,
+	SBI_EXT_COVH_TSM_RECLAIM_PAGES,
+	SBI_EXT_COVH_TSM_INITIATE_FENCE,
+	SBI_EXT_COVH_TSM_LOCAL_FENCE,
+	SBI_EXT_COVH_CREATE_TVM,
+	SBI_EXT_COVH_FINALIZE_TVM,
+	SBI_EXT_COVH_DESTROY_TVM,
+	SBI_EXT_COVH_TVM_ADD_MEMORY_REGION,
+	SBI_EXT_COVH_TVM_ADD_PGT_PAGES,
+	SBI_EXT_COVH_TVM_ADD_MEASURED_PAGES,
+	SBI_EXT_COVH_TVM_ADD_ZERO_PAGES,
+	SBI_EXT_COVH_TVM_ADD_SHARED_PAGES,
+	SBI_EXT_COVH_TVM_CREATE_VCPU,
+	SBI_EXT_COVH_TVM_VCPU_RUN,
+	SBI_EXT_COVH_TVM_INITIATE_FENCE,
+	SBI_EXT_COVH_TVM_INVALIDATE_PAGES,
+	SBI_EXT_COVH_TVM_VALIDATE_PAGES,
+	SBI_EXT_COVH_TVM_PROMOTE_PAGE,
+	SBI_EXT_COVH_TVM_DEMOTE_PAGE,
+	SBI_EXT_COVH_TVM_REMOVE_PAGES,
+};
+
+enum sbi_ext_covi_fid {
+	SBI_EXT_COVI_TVM_AIA_INIT,
+	SBI_EXT_COVI_TVM_CPU_SET_IMSIC_ADDR,
+	SBI_EXT_COVI_TVM_CONVERT_IMSIC,
+	SBI_EXT_COVI_TVM_RECLAIM_IMSIC,
+	SBI_EXT_COVI_TVM_CPU_BIND_IMSIC,
+	SBI_EXT_COVI_TVM_CPU_UNBIND_IMSIC_BEGIN,
+	SBI_EXT_COVI_TVM_CPU_UNBIND_IMSIC_END,
+	SBI_EXT_COVI_TVM_CPU_INJECT_EXT_INTERRUPT,
+	SBI_EXT_COVI_TVM_REBIND_IMSIC_BEGIN,
+	SBI_EXT_COVI_TVM_REBIND_IMSIC_CLONE,
+	SBI_EXT_COVI_TVM_REBIND_IMSIC_END,
+};
+
+enum sbi_cove_page_type {
+	SBI_COVE_PAGE_4K,
+	SBI_COVE_PAGE_2MB,
+	SBI_COVE_PAGE_1GB,
+	SBI_COVE_PAGE_512GB,
+};
+
+enum sbi_cove_tsm_state {
+	/* TSM has not been loaded yet */
+	TSM_NOT_LOADED,
+	/* TSM has been loaded but not initialized yet */
+	TSM_LOADED,
+	/* TSM has been initialized and ready to run */
+	TSM_READY,
+};
+
+struct sbi_cove_tsm_info {
+	/* Current state of the TSM */
+	enum sbi_cove_tsm_state tstate;
+
+	/* Version of the loaded TSM */
+	uint32_t version;
+
+	/* Number of 4K pages required per TVM */
+	unsigned long tvm_pages_needed;
+
+	/* Maximum VCPUs supported per TVM */
+	unsigned long tvm_max_vcpus;
+
+	/* Number of 4K pages each vcpu per TVM */
+	unsigned long tvcpu_pages_needed;
+};
+
+struct sbi_cove_tvm_create_params {
+	/* Root page directory for TVM's page table management */
+	unsigned long tvm_page_directory_addr;
+	/* Confidential memory address used to store TVM state information. Must be page aligned */
+	unsigned long tvm_state_addr;
+};
+
+struct sbi_cove_tvm_aia_params {
+	/* The base address is the address of the IMSIC with group ID, hart ID, and guest ID of 0 */
+	uint64_t imsic_base_addr;
+	/* The number of group index bits in an IMSIC address */
+	uint32_t group_index_bits;
+	/* The location of the group index in an IMSIC address. Must be >= 24i. */
+	uint32_t group_index_shift;
+	/* The number of hart index bits in an IMSIC address */
+	uint32_t hart_index_bits;
+	/* The number of guest index bits in an IMSIC address. Must be >= log2(guests/hart + 1) */
+	uint32_t guest_index_bits;
+	/* The number of guest interrupt files to be implemented per vCPU */
+	uint32_t guests_per_hart;
+};
+
+/* SBI COVG extension data structures */
+enum sbi_ext_covg_fid {
+	SBI_EXT_COVG_ADD_MMIO_REGION,
+	SBI_EXT_COVG_REMOVE_MMIO_REGION,
+	SBI_EXT_COVG_SHARE_MEMORY,
+	SBI_EXT_COVG_UNSHARE_MEMORY,
+	SBI_EXT_COVG_ALLOW_EXT_INTERRUPT,
+	SBI_EXT_COVG_DENY_EXT_INTERRUPT,
+};
+
+>>>>>>> upstream/cove-integration
 #define SBI_SPEC_VERSION_DEFAULT	0x1
 #define SBI_SPEC_VERSION_MAJOR_SHIFT	24
 #define SBI_SPEC_VERSION_MAJOR_MASK	0x7f

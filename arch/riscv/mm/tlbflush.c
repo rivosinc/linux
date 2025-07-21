@@ -71,8 +71,10 @@ static void __ipi_flush_tlb_all(void *info)
 	local_flush_tlb_all();
 }
 
-void flush_tlb_all(void)
+static inline void local_flush_tlb_range(unsigned long start,
+		unsigned long size, unsigned long stride)
 {
+<<<<<<< HEAD
 	if (riscv_use_ipi_for_rfence())
 		on_each_cpu(__ipi_flush_tlb_all, NULL, 1);
 	else
@@ -88,17 +90,71 @@ struct flush_tlb_range_data {
 
 static void __ipi_flush_tlb_range_asid(void *info)
 {
+=======
+	if (size <= stride)
+		local_flush_tlb_page(start);
+	else
+		local_flush_tlb_all();
+}
+
+static inline void local_flush_tlb_range_asid(unsigned long start,
+		unsigned long size, unsigned long stride, unsigned long asid)
+{
+	if (size <= stride)
+		local_flush_tlb_page_asid(start, asid);
+	else
+		local_flush_tlb_all_asid(asid);
+}
+
+static void __ipi_flush_tlb_all(void *info)
+{
+	local_flush_tlb_all();
+}
+
+void flush_tlb_all(void)
+{
+	if (riscv_use_ipi_for_rfence())
+		on_each_cpu(__ipi_flush_tlb_all, NULL, 1);
+	else
+		sbi_remote_sfence_vma(NULL, 0, -1);
+}
+
+struct flush_tlb_range_data {
+	unsigned long asid;
+	unsigned long start;
+	unsigned long size;
+	unsigned long stride;
+};
+
+static void __ipi_flush_tlb_range_asid(void *info)
+{
+>>>>>>> upstream/cove-integration
 	struct flush_tlb_range_data *d = info;
 
 	local_flush_tlb_range_asid(d->start, d->size, d->stride, d->asid);
 }
 
+<<<<<<< HEAD
+=======
+static void __ipi_flush_tlb_range(void *info)
+{
+	struct flush_tlb_range_data *d = info;
+
+	local_flush_tlb_range(d->start, d->size, d->stride);
+}
+
+>>>>>>> upstream/cove-integration
 static void __flush_tlb_range(struct mm_struct *mm, unsigned long start,
 			      unsigned long size, unsigned long stride)
 {
 	struct flush_tlb_range_data ftd;
+<<<<<<< HEAD
 	const struct cpumask *cmask;
 	unsigned long asid = FLUSH_TLB_NO_ASID;
+=======
+	struct cpumask *cmask = mm_cpumask(mm);
+	unsigned int cpuid;
+>>>>>>> upstream/cove-integration
 	bool broadcast;
 
 	if (mm) {
@@ -108,6 +164,7 @@ static void __flush_tlb_range(struct mm_struct *mm, unsigned long start,
 		if (cpumask_empty(cmask))
 			return;
 
+<<<<<<< HEAD
 		cpuid = get_cpu();
 		/* check if the tlbflush needs to be sent to other CPUs */
 		broadcast = cpumask_any_but(cmask, cpuid) < nr_cpu_ids;
@@ -117,6 +174,38 @@ static void __flush_tlb_range(struct mm_struct *mm, unsigned long start,
 	} else {
 		cmask = cpu_online_mask;
 		broadcast = true;
+=======
+		if (broadcast) {
+			if (riscv_use_ipi_for_rfence()) {
+				ftd.asid = asid;
+				ftd.start = start;
+				ftd.size = size;
+				ftd.stride = stride;
+				on_each_cpu_mask(cmask,
+						 __ipi_flush_tlb_range_asid,
+						 &ftd, 1);
+			} else
+				sbi_remote_sfence_vma_asid(cmask,
+							   start, size, asid);
+		} else {
+			local_flush_tlb_range_asid(start, size, stride, asid);
+		}
+	} else {
+		if (broadcast) {
+			if (riscv_use_ipi_for_rfence()) {
+				ftd.asid = 0;
+				ftd.start = start;
+				ftd.size = size;
+				ftd.stride = stride;
+				on_each_cpu_mask(cmask,
+						 __ipi_flush_tlb_range,
+						 &ftd, 1);
+			} else
+				sbi_remote_sfence_vma(cmask, start, size);
+		} else {
+			local_flush_tlb_range(start, size, stride);
+		}
+>>>>>>> upstream/cove-integration
 	}
 
 	if (broadcast) {
@@ -141,6 +230,7 @@ static void __flush_tlb_range(struct mm_struct *mm, unsigned long start,
 
 void flush_tlb_mm(struct mm_struct *mm)
 {
+<<<<<<< HEAD
 	__flush_tlb_range(mm, 0, FLUSH_TLB_MAX_SIZE, PAGE_SIZE);
 }
 
@@ -149,6 +239,9 @@ void flush_tlb_mm_range(struct mm_struct *mm,
 			unsigned int page_size)
 {
 	__flush_tlb_range(mm, start, end - start, page_size);
+=======
+	__flush_tlb_range(mm, 0, -1, PAGE_SIZE);
+>>>>>>> upstream/cove-integration
 }
 
 void flush_tlb_page(struct vm_area_struct *vma, unsigned long addr)
@@ -159,6 +252,7 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long addr)
 void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 		     unsigned long end)
 {
+<<<<<<< HEAD
 	unsigned long stride_size;
 
 	if (!is_vm_hugetlb_page(vma)) {
@@ -186,6 +280,9 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 	}
 
 	__flush_tlb_range(vma->vm_mm, start, end - start, stride_size);
+=======
+	__flush_tlb_range(vma->vm_mm, start, end - start, PAGE_SIZE);
+>>>>>>> upstream/cove-integration
 }
 
 void flush_tlb_kernel_range(unsigned long start, unsigned long end)

@@ -5,12 +5,20 @@
  *
  */
 
+<<<<<<< HEAD
 #define pr_fmt(fmt)     "ACPI: RHCT: " fmt
 
 #include <linux/acpi.h>
 #include <linux/bits.h>
 
 static struct acpi_table_rhct *acpi_get_rhct(void)
+=======
+#define pr_fmt(fmt)	"ACPI: RHCT: " fmt
+
+#include <linux/acpi.h>
+
+static struct acpi_table_header *acpi_get_rhct(void)
+>>>>>>> upstream/cove-integration
 {
 	static struct acpi_table_header *rhct;
 	acpi_status status;
@@ -27,7 +35,11 @@ static struct acpi_table_rhct *acpi_get_rhct(void)
 		}
 	}
 
+<<<<<<< HEAD
 	return (struct acpi_table_rhct *)rhct;
+=======
+	return rhct;
+>>>>>>> upstream/cove-integration
 }
 
 /*
@@ -49,7 +61,11 @@ int acpi_get_riscv_isa(struct acpi_table_header *table, unsigned int cpu, const 
 	BUG_ON(acpi_disabled);
 
 	if (!table) {
+<<<<<<< HEAD
 		rhct = acpi_get_rhct();
+=======
+		rhct = (struct acpi_table_rhct *)acpi_get_rhct();
+>>>>>>> upstream/cove-integration
 		if (!rhct)
 			return -ENOENT;
 	} else {
@@ -82,6 +98,7 @@ int acpi_get_riscv_isa(struct acpi_table_header *table, unsigned int cpu, const 
 
 	return -1;
 }
+<<<<<<< HEAD
 
 static void acpi_parse_hart_info_cmo_node(struct acpi_table_rhct *rhct,
 					  struct acpi_rhct_hart_info *hart_info,
@@ -168,3 +185,5 @@ void acpi_get_cbo_block_size(struct acpi_table_header *table, u32 *cbom_size,
 		}
 	}
 }
+=======
+>>>>>>> upstream/cove-integration

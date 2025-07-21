@@ -9,7 +9,10 @@
  */
 
 #include <linux/acpi.h>
+<<<<<<< HEAD
 #include <linux/cpu.h>
+=======
+>>>>>>> upstream/cove-integration
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/memblock.h>
@@ -37,6 +40,7 @@
 #include <asm/thread_info.h>
 #include <asm/kasan.h>
 #include <asm/efi.h>
+#include <asm/cove.h>
 
 #include "head.h"
 
@@ -257,6 +261,10 @@ void __init setup_arch(char **cmdline_p)
 
 	early_ioremap_setup();
 	sbi_init();
+<<<<<<< HEAD
+=======
+	riscv_cove_sbi_init();
+>>>>>>> upstream/cove-integration
 	jump_label_init();
 	parse_early_param();
 
@@ -265,12 +273,29 @@ void __init setup_arch(char **cmdline_p)
 
 	/* Parse the ACPI tables for possible boot-time configuration */
 	acpi_boot_table_init();
+<<<<<<< HEAD
 
 #if IS_ENABLED(CONFIG_BUILTIN_DTB)
 	unflatten_and_copy_device_tree();
 #else
 	unflatten_device_tree();
 #endif
+=======
+	if (acpi_disabled) {
+		if (IS_ENABLED(CONFIG_BUILTIN_DTB)) {
+			unflatten_and_copy_device_tree();
+		} else {
+			if (early_init_dt_verify(__va(XIP_FIXUP(dtb_early_pa))))
+				unflatten_device_tree();
+			else
+				pr_err("No DTB found in kernel mappings\n");
+		}
+	} else {
+		early_init_dt_verify(__va(XIP_FIXUP(dtb_early_pa)));
+	}
+
+	early_init_fdt_scan_reserved_mem();
+>>>>>>> upstream/cove-integration
 	misc_mem_init();
 
 	init_resources();

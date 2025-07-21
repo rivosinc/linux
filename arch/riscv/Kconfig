@@ -14,7 +14,10 @@ config RISCV
 	def_bool y
 	select ACPI_GENERIC_GSI if ACPI
 	select ACPI_REDUCED_HARDWARE_ONLY if ACPI
+<<<<<<< HEAD
 	select ARCH_DMA_DEFAULT_COHERENT
+=======
+>>>>>>> upstream/cove-integration
 	select ARCH_ENABLE_HUGEPAGE_MIGRATION if HUGETLB_PAGE && MIGRATION
 	select ARCH_ENABLE_SPLIT_PMD_PTLOCK if PGTABLE_LEVELS > 2
 	select ARCH_ENABLE_THP_MIGRATION if TRANSPARENT_HUGEPAGE
@@ -154,7 +157,12 @@ config RISCV
 	select OF_IRQ
 	select PCI_DOMAINS_GENERIC if PCI
 	select PCI_MSI if PCI
+<<<<<<< HEAD
 	select RISCV_ALTERNATIVE if !XIP_KERNEL
+=======
+	select RISCV_APLIC
+	select RISCV_IMSIC
+>>>>>>> upstream/cove-integration
 	select RISCV_INTC
 	select RISCV_TIMER if RISCV_SBI
 	select SIFIVE_PLIC
@@ -196,6 +204,11 @@ config ARCH_MMAP_RND_BITS_MAX
 
 config ARCH_MMAP_RND_COMPAT_BITS_MAX
 	default 17
+
+config RISCV_MEM_ENCRYPT
+	select ARCH_HAS_MEM_ENCRYPT
+	select ARCH_HAS_FORCE_DMA_UNENCRYPTED
+	def_bool n
 
 # set if we run in machine mode, cleared if we run in supervisor mode
 config RISCV_M_MODE
@@ -623,6 +636,7 @@ config FPU
 
 	  If you don't know what to do here, say Y.
 
+<<<<<<< HEAD
 config IRQ_STACKS
 	bool "Independent irq & softirq stacks" if EXPERT
 	default y
@@ -650,6 +664,29 @@ config RISCV_MISALIGNED
 	  Say Y here if you want the kernel to embed support for misaligned
 	  load/store for both kernel and userspace. When disable, misaligned
 	  accesses will generate SIGBUS in userspace and panic in kernel.
+=======
+menu "Confidential VM Extension(CoVE) Support"
+
+config RISCV_COVE_HOST
+	bool "Host(KVM) support for Confidential VM Extension(CoVE)"
+	depends on KVM
+	default n
+	help
+            Enable this if the platform supports confidential vm extension.
+	    That means the platform should be capable of running TEE VM (TVM)
+	    using KVM and TEE Security Manager (TSM).
+
+config RISCV_COVE_GUEST
+	bool "Guest Support for Confidential VM Extension(CoVE)"
+	default n
+	select SWIOTLB
+	select RISCV_MEM_ENCRYPT
+	select ARCH_HAS_CC_PLATFORM
+	help
+	  Enables support for running TVMs on platforms supporting CoVE.
+
+endmenu # "Confidential VM Extension(CoVE) Support"
+>>>>>>> upstream/cove-integration
 
 endmenu # "Platform type"
 

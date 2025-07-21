@@ -11,9 +11,10 @@
 #include <linux/kvm_host.h>
 #include <linux/uaccess.h>
 #include <clocksource/timer-riscv.h>
-#include <asm/csr.h>
 #include <asm/delay.h>
+#include <asm/kvm_nacl.h>
 #include <asm/kvm_vcpu_timer.h>
+#include <asm/kvm_cove.h>
 
 static u64 kvm_riscv_current_cycles(struct kvm_guest_timer *gt)
 {
@@ -71,13 +72,17 @@ static int kvm_riscv_vcpu_timer_cancel(struct kvm_vcpu_timer *t)
 
 static int kvm_riscv_vcpu_update_vstimecmp(struct kvm_vcpu *vcpu, u64 ncycles)
 {
-#if defined(CONFIG_32BIT)
-		csr_write(CSR_VSTIMECMP, ncycles & 0xFFFFFFFF);
-		csr_write(CSR_VSTIMECMPH, ncycles >> 32);
-#else
-		csr_write(CSR_VSTIMECMP, ncycles);
-#endif
+	/* Host is not allowed to update the vstimecmp for the TVM */
+	if (is_cove_vcpu(vcpu))
 		return 0;
+
+#if defined(CONFIG_32BIT)
+	nacl_csr_write(CSR_VSTIMECMP, ncycles & 0xFFFFFFFF);
+	nacl_csr_write(CSR_VSTIMECMPH, ncycles >> 32);
+#else
+	nacl_csr_write(CSR_VSTIMECMP, ncycles);
+#endif
+	return 0;
 }
 
 static int kvm_riscv_vcpu_update_hrtimer(struct kvm_vcpu *vcpu, u64 ncycles)
@@ -222,6 +227,11 @@ int kvm_riscv_vcpu_set_reg_timer(struct kvm_vcpu *vcpu,
 			return -EINVAL;
 		break;
 	case KVM_REG_RISCV_TIMER_REG(time):
+		/* For trusted VMs we can not update htimedelta. We can just
+		 * read it from shared memory.
+		 */
+		if (is_cove_vcpu(vcpu))
+			return -EOPNOTSUPP;
 		gt->time_delta = reg_val - get_cycles64();
 		break;
 	case KVM_REG_RISCV_TIMER_REG(compare):
@@ -288,11 +298,12 @@ static void kvm_riscv_vcpu_update_timedelta(struct kvm_vcpu *vcpu)
 {
 	struct kvm_guest_timer *gt = &vcpu->kvm->arch.timer;
 
+
 #if defined(CONFIG_32BIT)
-	csr_write(CSR_HTIMEDELTA, (u32)(gt->time_delta));
-	csr_write(CSR_HTIMEDELTAH, (u32)(gt->time_delta >> 32));
+	nacl_csr_write(CSR_HTIMEDELTA, (u32)(gt->time_delta));
+	nacl_csr_write(CSR_HTIMEDELTAH, (u32)(gt->time_delta >> 32));
 #else
-	csr_write(CSR_HTIMEDELTA, gt->time_delta);
+	nacl_csr_write(CSR_HTIMEDELTA, gt->time_delta);
 #endif
 }
 
@@ -300,18 +311,23 @@ void kvm_riscv_vcpu_timer_restore(struct kvm_vcpu *vcpu)
 {
 	struct kvm_vcpu_timer *t = &vcpu->arch.timer;
 
+	/* While in CoVE, HOST must not manage HTIMEDELTA or VSTIMECMP for TVM */
+	if (is_cove_vcpu(vcpu))
+		goto skip_hcsr_update;
+
 	kvm_riscv_vcpu_update_timedelta(vcpu);
 
 	if (!t->sstc_enabled)
 		return;
 
 #if defined(CONFIG_32BIT)
-	csr_write(CSR_VSTIMECMP, (u32)t->next_cycles);
-	csr_write(CSR_VSTIMECMPH, (u32)(t->next_cycles >> 32));
+	nacl_csr_write(CSR_VSTIMECMP, (u32)t->next_cycles);
+	nacl_csr_write(CSR_VSTIMECMPH, (u32)(t->next_cycles >> 32));
 #else
-	csr_write(CSR_VSTIMECMP, t->next_cycles);
+	nacl_csr_write(CSR_VSTIMECMP, t->next_cycles);
 #endif
 
+skip_hcsr_update:
 	/* timer should be enabled for the remaining operations */
 	if (unlikely(!t->init_done))
 		return;
@@ -327,10 +343,10 @@ void kvm_riscv_vcpu_timer_sync(struct kvm_vcpu *vcpu)
 		return;
 
 #if defined(CONFIG_32BIT)
-	t->next_cycles = csr_read(CSR_VSTIMECMP);
-	t->next_cycles |= (u64)csr_read(CSR_VSTIMECMPH) << 32;
+	t->next_cycles = nacl_csr_read(CSR_VSTIMECMP);
+	t->next_cycles |= (u64)nacl_csr_read(CSR_VSTIMECMPH) << 32;
 #else
-	t->next_cycles = csr_read(CSR_VSTIMECMP);
+	t->next_cycles = nacl_csr_read(CSR_VSTIMECMP);
 #endif
 }
 
@@ -359,5 +375,13 @@ void kvm_riscv_guest_timer_init(struct kvm *kvm)
 	struct kvm_guest_timer *gt = &kvm->arch.timer;
 
 	riscv_cs_get_mult_shift(&gt->nsec_mult, &gt->nsec_shift);
-	gt->time_delta = -get_cycles64();
+	if (is_cove_vm(kvm)) {
+		/* For TVMs htimedelta is managed by TSM and it's communicated using
+		 * NACL shmem interface when first time VCPU is run. so we read it in
+		 * kvm_riscv_cove_vcpu_switchto() where we enter VCPUs.
+		 */
+		gt->time_delta = 0;
+	} else {
+		gt->time_delta = -get_cycles64();
+	}
 }

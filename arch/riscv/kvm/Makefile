@@ -14,6 +14,7 @@ kvm-y += vm.o
 kvm-y += vmid.o
 kvm-y += tlb.o
 kvm-y += mmu.o
+kvm-y += nacl.o
 kvm-y += vcpu.o
 kvm-y += vcpu_exit.o
 kvm-y += vcpu_fp.o
@@ -32,3 +33,7 @@ kvm-y += aia.o
 kvm-y += aia_device.o
 kvm-y += aia_aplic.o
 kvm-y += aia_imsic.o
+<<<<<<< HEAD
+=======
+kvm-$(CONFIG_RISCV_COVE_HOST) += cove_sbi.o cove.o vcpu_sbi_covg.o
+>>>>>>> upstream/cove-integration

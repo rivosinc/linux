@@ -19,10 +19,17 @@ typedef u64 phys_cpuid_t;
 #define PHYS_CPUID_INVALID INVALID_HARTID
 
 /* ACPI table mapping after acpi_permanent_mmap is set */
+<<<<<<< HEAD
 void __iomem *acpi_os_ioremap(acpi_physical_address phys, acpi_size size);
 #define acpi_os_ioremap acpi_os_ioremap
 
 #define acpi_strict 1	/* No out-of-spec workarounds on RISC-V */
+=======
+void *acpi_os_ioremap(acpi_physical_address phys, acpi_size size);
+#define acpi_os_ioremap acpi_os_ioremap
+
+#define acpi_strict 1   /* No out-of-spec workarounds on RISC-V */
+>>>>>>> upstream/cove-integration
 extern int acpi_disabled;
 extern int acpi_noirq;
 extern int acpi_pci_disabled;
@@ -43,7 +50,11 @@ static inline void enable_acpi(void)
 
 /*
  * The ACPI processor driver for ACPI core code needs this macro
+<<<<<<< HEAD
  * to find out whether this cpu was already mapped (mapping from CPU hardware
+=======
+ * to find out this cpu was already mapped (mapping from CPU hardware
+>>>>>>> upstream/cove-integration
  * ID to CPU logical ID) or not.
  */
 #define cpu_physical_id(cpu) cpuid_to_hartid_map(cpu)
@@ -59,13 +70,17 @@ static inline bool acpi_has_cpu_in_madt(void)
 
 static inline void arch_fix_phys_package_id(int num, u32 slot) { }
 
+<<<<<<< HEAD
 void acpi_init_rintc_map(void);
+=======
+>>>>>>> upstream/cove-integration
 struct acpi_madt_rintc *acpi_cpu_get_madt_rintc(int cpu);
 u32 get_acpi_id_for_cpu(int cpu);
 int acpi_get_riscv_isa(struct acpi_table_header *table,
 		       unsigned int cpu, const char **isa);
 
 static inline int acpi_numa_get_nid(unsigned int cpu) { return NUMA_NO_NODE; }
+<<<<<<< HEAD
 void acpi_get_cbo_block_size(struct acpi_table_header *table, u32 *cbom_size,
 			     u32 *cboz_size, u32 *cbop_size);
 #else
@@ -75,16 +90,22 @@ static inline struct acpi_madt_rintc *acpi_cpu_get_madt_rintc(int cpu)
 	return NULL;
 }
 
+=======
+#else
+>>>>>>> upstream/cove-integration
 static inline int acpi_get_riscv_isa(struct acpi_table_header *table,
 				     unsigned int cpu, const char **isa)
 {
 	return -EINVAL;
 }
 
+<<<<<<< HEAD
 static inline void acpi_get_cbo_block_size(struct acpi_table_header *table,
 					   u32 *cbom_size, u32 *cboz_size,
 					   u32 *cbop_size) { }
 
+=======
+>>>>>>> upstream/cove-integration
 #endif /* CONFIG_ACPI */
 
 #endif /*_ASM_ACPI_H*/

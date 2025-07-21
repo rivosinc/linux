@@ -7,6 +7,7 @@
  *	Anup Patel <apatel@ventanamicro.com>
  */
 
+<<<<<<< HEAD
 #include <linux/kernel.h>
 #include <linux/bitops.h>
 #include <linux/irq.h>
@@ -16,10 +17,26 @@
 #include <linux/spinlock.h>
 #include <asm/cpufeature.h>
 #include <asm/kvm_aia_imsic.h>
+=======
+#include <linux/bitops.h>
+#include <linux/irq.h>
+#include <linux/irqdomain.h>
+#include <linux/irqchip/riscv-imsic.h>
+#include <linux/kvm_host.h>
+#include <linux/percpu.h>
+#include <linux/spinlock.h>
+#include <asm/hwcap.h>
+#include <asm/kvm_cove.h>
+>>>>>>> upstream/cove-integration
 
 struct aia_hgei_control {
 	raw_spinlock_t lock;
 	unsigned long free_bitmap;
+<<<<<<< HEAD
+=======
+	/* Tracks if a hgei is converted to confidential mode */
+	unsigned long nconf_bitmap;
+>>>>>>> upstream/cove-integration
 	struct kvm_vcpu *owners[BITS_PER_LONG];
 };
 static DEFINE_PER_CPU(struct aia_hgei_control, aia_hgei);
@@ -33,7 +50,11 @@ static int aia_find_hgei(struct kvm_vcpu *owner)
 {
 	int i, hgei;
 	unsigned long flags;
+<<<<<<< HEAD
 	struct aia_hgei_control *hgctrl = get_cpu_ptr(&aia_hgei);
+=======
+	struct aia_hgei_control *hgctrl = this_cpu_ptr(&aia_hgei);
+>>>>>>> upstream/cove-integration
 
 	raw_spin_lock_irqsave(&hgctrl->lock, flags);
 
@@ -47,7 +68,10 @@ static int aia_find_hgei(struct kvm_vcpu *owner)
 
 	raw_spin_unlock_irqrestore(&hgctrl->lock, flags);
 
+<<<<<<< HEAD
 	put_cpu_ptr(&aia_hgei);
+=======
+>>>>>>> upstream/cove-integration
 	return hgei;
 }
 
@@ -102,20 +126,31 @@ bool kvm_riscv_vcpu_aia_has_interrupts(struct kvm_vcpu *vcpu, u64 mask)
 
 #ifdef CONFIG_32BIT
 	if (READ_ONCE(vcpu->arch.irqs_pending[1]) &
+<<<<<<< HEAD
 	    (vcpu->arch.aia_context.guest_csr.vsieh & upper_32_bits(mask)))
+=======
+	    (vcpu->arch.aia_context.guest_csr.vsieh & (unsigned long)(mask >> 32)))
+>>>>>>> upstream/cove-integration
 		return true;
 #endif
 
 	seip = vcpu->arch.guest_csr.vsie;
 	seip &= (unsigned long)mask;
 	seip &= BIT(IRQ_S_EXT);
+<<<<<<< HEAD
 
+=======
+>>>>>>> upstream/cove-integration
 	if (!kvm_riscv_aia_initialized(vcpu->kvm) || !seip)
 		return false;
 
 	hgei = aia_find_hgei(vcpu);
 	if (hgei > 0)
+<<<<<<< HEAD
 		return !!(csr_read(CSR_HGEIP) & BIT(hgei));
+=======
+		return (csr_read(CSR_HGEIP) & BIT(hgei)) ? true : false;
+>>>>>>> upstream/cove-integration
 
 	return false;
 }
@@ -130,14 +165,22 @@ void kvm_riscv_vcpu_aia_update_hvip(struct kvm_vcpu *vcpu)
 #ifdef CONFIG_32BIT
 	csr_write(CSR_HVIPH, vcpu->arch.aia_context.guest_csr.hviph);
 #endif
+<<<<<<< HEAD
 	aia_set_hvictl(!!(csr->hvip & BIT(IRQ_VS_EXT)));
+=======
+	aia_set_hvictl((csr->hvip & BIT(IRQ_VS_EXT)) ? true : false);
+>>>>>>> upstream/cove-integration
 }
 
 void kvm_riscv_vcpu_aia_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	struct kvm_vcpu_aia_csr *csr = &vcpu->arch.aia_context.guest_csr;
 
+<<<<<<< HEAD
 	if (!kvm_riscv_aia_available())
+=======
+	if (!kvm_riscv_aia_available() || is_cove_vcpu(vcpu))
+>>>>>>> upstream/cove-integration
 		return;
 
 	csr_write(CSR_VSISELECT, csr->vsiselect);
@@ -155,7 +198,11 @@ void kvm_riscv_vcpu_aia_put(struct kvm_vcpu *vcpu)
 {
 	struct kvm_vcpu_aia_csr *csr = &vcpu->arch.aia_context.guest_csr;
 
+<<<<<<< HEAD
 	if (!kvm_riscv_aia_available())
+=======
+	if (!kvm_riscv_aia_available() || is_cove_vcpu(vcpu))
+>>>>>>> upstream/cove-integration
 		return;
 
 	csr->vsiselect = csr_read(CSR_VSISELECT);
@@ -176,7 +223,11 @@ int kvm_riscv_vcpu_aia_get_csr(struct kvm_vcpu *vcpu,
 	struct kvm_vcpu_aia_csr *csr = &vcpu->arch.aia_context.guest_csr;
 
 	if (reg_num >= sizeof(struct kvm_riscv_aia_csr) / sizeof(unsigned long))
+<<<<<<< HEAD
 		return -ENOENT;
+=======
+		return -EINVAL;
+>>>>>>> upstream/cove-integration
 
 	*out_val = 0;
 	if (kvm_riscv_aia_available())
@@ -192,7 +243,11 @@ int kvm_riscv_vcpu_aia_set_csr(struct kvm_vcpu *vcpu,
 	struct kvm_vcpu_aia_csr *csr = &vcpu->arch.aia_context.guest_csr;
 
 	if (reg_num >= sizeof(struct kvm_riscv_aia_csr) / sizeof(unsigned long))
+<<<<<<< HEAD
 		return -ENOENT;
+=======
+		return -EINVAL;
+>>>>>>> upstream/cove-integration
 
 	if (kvm_riscv_aia_available()) {
 		((unsigned long *)csr)[reg_num] = val;
@@ -268,7 +323,11 @@ static u8 aia_get_iprio8(struct kvm_vcpu *vcpu, unsigned int irq)
 #endif
 	default:
 		return 0;
+<<<<<<< HEAD
 	}
+=======
+	};
+>>>>>>> upstream/cove-integration
 
 	return (hviprio >> (bitpos % BITS_PER_LONG)) & TOPI_IPRIO_MASK;
 }
@@ -301,9 +360,16 @@ static void aia_set_iprio8(struct kvm_vcpu *vcpu, unsigned int irq, u8 prio)
 #endif
 	default:
 		return;
+<<<<<<< HEAD
 	}
 
 	hviprio &= ~(TOPI_IPRIO_MASK << (bitpos % BITS_PER_LONG));
+=======
+	};
+
+	hviprio &= ~((unsigned long)TOPI_IPRIO_MASK <<
+		     (bitpos % BITS_PER_LONG));
+>>>>>>> upstream/cove-integration
 	hviprio |= (unsigned long)prio << (bitpos % BITS_PER_LONG);
 
 	switch (bitpos / BITS_PER_LONG) {
@@ -326,16 +392,25 @@ static void aia_set_iprio8(struct kvm_vcpu *vcpu, unsigned int irq, u8 prio)
 #endif
 	default:
 		return;
+<<<<<<< HEAD
 	}
+=======
+	};
+>>>>>>> upstream/cove-integration
 }
 
 static int aia_rmw_iprio(struct kvm_vcpu *vcpu, unsigned int isel,
 			 unsigned long *val, unsigned long new_val,
 			 unsigned long wr_mask)
 {
+<<<<<<< HEAD
 	int i, first_irq, nirqs;
 	unsigned long old_val;
 	u8 prio;
+=======
+	int i, firq, nirqs;
+	unsigned long old_val;
+>>>>>>> upstream/cove-integration
 
 #ifndef CONFIG_32BIT
 	if (isel & 0x1)
@@ -343,6 +418,7 @@ static int aia_rmw_iprio(struct kvm_vcpu *vcpu, unsigned int isel,
 #endif
 
 	nirqs = 4 * (BITS_PER_LONG / 32);
+<<<<<<< HEAD
 	first_irq = (isel - ISELECT_IPRIO0) * 4;
 
 	old_val = 0;
@@ -350,17 +426,31 @@ static int aia_rmw_iprio(struct kvm_vcpu *vcpu, unsigned int isel,
 		prio = aia_get_iprio8(vcpu, first_irq + i);
 		old_val |= (unsigned long)prio << (TOPI_IPRIO_BITS * i);
 	}
+=======
+	firq = ((isel - ISELECT_IPRIO0) / (BITS_PER_LONG / 32)) * (nirqs);
+
+	old_val = 0;
+	for (i = 0; i < nirqs; i++)
+		old_val |= (unsigned long)aia_get_iprio8(vcpu, firq + i) <<
+			   (TOPI_IPRIO_BITS * i);
+>>>>>>> upstream/cove-integration
 
 	if (val)
 		*val = old_val;
 
 	if (wr_mask) {
 		new_val = (old_val & ~wr_mask) | (new_val & wr_mask);
+<<<<<<< HEAD
 		for (i = 0; i < nirqs; i++) {
 			prio = (new_val >> (TOPI_IPRIO_BITS * i)) &
 				TOPI_IPRIO_MASK;
 			aia_set_iprio8(vcpu, first_irq + i, prio);
 		}
+=======
+		for (i = 0; i < nirqs; i++)
+			aia_set_iprio8(vcpu, firq + i,
+			(new_val >> (TOPI_IPRIO_BITS * i)) & TOPI_IPRIO_MASK);
+>>>>>>> upstream/cove-integration
 	}
 
 	return KVM_INSN_CONTINUE_NEXT_SEPC;
@@ -376,6 +466,13 @@ int kvm_riscv_vcpu_aia_rmw_ireg(struct kvm_vcpu *vcpu, unsigned int csr_num,
 	if (!kvm_riscv_aia_available())
 		return KVM_INSN_ILLEGAL_TRAP;
 
+<<<<<<< HEAD
+=======
+	/* TVMs do not support AIA emulation */
+	if (is_cove_vcpu(vcpu))
+		return KVM_INSN_EXIT_TO_USER_SPACE;
+
+>>>>>>> upstream/cove-integration
 	/* First try to emulate in kernel space */
 	isel = csr_read(CSR_VSISELECT) & ISELECT_MASK;
 	if (isel >= ISELECT_IPRIO0 && isel <= ISELECT_IPRIO15)
@@ -392,6 +489,7 @@ int kvm_riscv_vcpu_aia_rmw_ireg(struct kvm_vcpu *vcpu, unsigned int csr_num,
 int kvm_riscv_aia_alloc_hgei(int cpu, struct kvm_vcpu *owner,
 			     void __iomem **hgei_va, phys_addr_t *hgei_pa)
 {
+<<<<<<< HEAD
 	int ret = -ENOENT;
 	unsigned long flags;
 	struct aia_hgei_control *hgctrl = per_cpu_ptr(&aia_hgei, cpu);
@@ -415,6 +513,98 @@ int kvm_riscv_aia_alloc_hgei(int cpu, struct kvm_vcpu *owner,
 	if (hgei_pa)
 		*hgei_pa = 0;
 
+=======
+	int ret = -ENOENT, rc;
+	bool reclaim_needed = false;
+	unsigned long flags, tmp_bitmap;
+	const struct imsic_local_config *lc;
+	struct aia_hgei_control *hgctrl = per_cpu_ptr(&aia_hgei, cpu);
+	phys_addr_t imsic_hgei_pa;
+
+	if (!kvm_riscv_aia_available())
+		return -ENODEV;
+	if (!hgctrl)
+		return -ENODEV;
+
+	lc = imsic_get_local_config(cpu);
+	raw_spin_lock_irqsave(&hgctrl->lock, flags);
+
+	if (!hgctrl->free_bitmap) {
+		raw_spin_unlock_irqrestore(&hgctrl->lock, flags);
+		goto done;
+	}
+
+	if (!is_cove_vcpu(owner)) {
+		/* Find a free one that is not converted */
+		tmp_bitmap = hgctrl->free_bitmap & hgctrl->nconf_bitmap;
+		if (tmp_bitmap > 0)
+			ret = __ffs(tmp_bitmap);
+		else {
+			/* All free ones have been converted in the past. Reclaim one now */
+			ret = __ffs(hgctrl->free_bitmap);
+			reclaim_needed = true;
+		}
+	} else {
+		/* First try to find a free one that is already converted */
+		tmp_bitmap = hgctrl->free_bitmap & !hgctrl->nconf_bitmap;
+		if (tmp_bitmap > 0)
+			ret = __ffs(tmp_bitmap);
+		else
+			ret = __ffs(hgctrl->free_bitmap);
+	}
+
+	hgctrl->free_bitmap &= ~BIT(ret);
+	hgctrl->owners[ret] = owner;
+	raw_spin_unlock_irqrestore(&hgctrl->lock, flags);
+
+	if (lc && ret > 0) {
+		if (hgei_va)
+			*hgei_va = lc->msi_va + (ret * IMSIC_MMIO_PAGE_SZ);
+		imsic_hgei_pa = lc->msi_pa + (ret * IMSIC_MMIO_PAGE_SZ);
+
+		if (reclaim_needed) {
+			rc = kvm_riscv_cove_aia_claim_imsic(owner, imsic_hgei_pa);
+			if (rc) {
+				kvm_err("Reclaim of imsic pa %pa failed for vcpu %d pcpu %d ret %d\n",
+					&imsic_hgei_pa, owner->vcpu_idx, smp_processor_id(), ret);
+				kvm_riscv_aia_free_hgei(cpu, ret);
+				return rc;
+			}
+		}
+
+		/*
+		 * Clear the free_bitmap here instead in case relcaim was necessary.
+		 * Do it here instead of above because it we should only set the nconf
+		 * bitmap after the claim is successful.
+		 */
+		raw_spin_lock_irqsave(&hgctrl->lock, flags);
+		if (reclaim_needed)
+			set_bit(ret, &hgctrl->nconf_bitmap);
+		raw_spin_unlock_irqrestore(&hgctrl->lock, flags);
+
+		if (is_cove_vcpu(owner) && test_bit(ret, &hgctrl->nconf_bitmap)) {
+			/*
+			 * Convert the address to confidential mode.
+			 * This may need to send IPIs to issue global fence. Hence,
+			 * enable interrupts temporarily for irq processing
+			 */
+			rc = kvm_riscv_cove_aia_convert_imsic(owner, imsic_hgei_pa);
+
+			if (rc) {
+				kvm_riscv_aia_free_hgei(cpu, ret);
+				ret = rc;
+			} else {
+				raw_spin_lock_irqsave(&hgctrl->lock, flags);
+				clear_bit(ret, &hgctrl->nconf_bitmap);
+				raw_spin_unlock_irqrestore(&hgctrl->lock, flags);
+			}
+		}
+	}
+
+	if (hgei_pa)
+		*hgei_pa = imsic_hgei_pa;
+done:
+>>>>>>> upstream/cove-integration
 	return ret;
 }
 
@@ -458,7 +648,11 @@ static irqreturn_t hgei_interrupt(int irq, void *dev_id)
 {
 	int i;
 	unsigned long hgei_mask, flags;
+<<<<<<< HEAD
 	struct aia_hgei_control *hgctrl = get_cpu_ptr(&aia_hgei);
+=======
+	struct aia_hgei_control *hgctrl = this_cpu_ptr(&aia_hgei);
+>>>>>>> upstream/cove-integration
 
 	hgei_mask = csr_read(CSR_HGEIP) & csr_read(CSR_HGEIE);
 	csr_clear(CSR_HGEIE, hgei_mask);
@@ -472,7 +666,10 @@ static irqreturn_t hgei_interrupt(int irq, void *dev_id)
 
 	raw_spin_unlock_irqrestore(&hgctrl->lock, flags);
 
+<<<<<<< HEAD
 	put_cpu_ptr(&aia_hgei);
+=======
+>>>>>>> upstream/cove-integration
 	return IRQ_HANDLED;
 }
 
@@ -492,6 +689,11 @@ static int aia_hgei_init(void)
 			hgctrl->free_bitmap &= ~BIT(0);
 		} else
 			hgctrl->free_bitmap = 0;
+<<<<<<< HEAD
+=======
+		/* By default all vsfiles are to be used for non-confidential mode */
+		hgctrl->nconf_bitmap = hgctrl->free_bitmap;
+>>>>>>> upstream/cove-integration
 	}
 
 	/* Find INTC irq domain */
@@ -531,6 +733,12 @@ void kvm_riscv_aia_enable(void)
 	if (!kvm_riscv_aia_available())
 		return;
 
+<<<<<<< HEAD
+=======
+	if (unlikely(kvm_riscv_cove_enabled()))
+		goto enable_gext;
+
+>>>>>>> upstream/cove-integration
 	aia_set_hvictl(false);
 	csr_write(CSR_HVIPRIO1, 0x0);
 	csr_write(CSR_HVIPRIO2, 0x0);
@@ -541,6 +749,10 @@ void kvm_riscv_aia_enable(void)
 	csr_write(CSR_HVIPRIO2H, 0x0);
 #endif
 
+<<<<<<< HEAD
+=======
+enable_gext:
+>>>>>>> upstream/cove-integration
 	/* Enable per-CPU SGEI interrupt */
 	enable_percpu_irq(hgei_parent_irq,
 			  irq_get_trigger_type(hgei_parent_irq));
@@ -552,17 +764,30 @@ void kvm_riscv_aia_disable(void)
 	int i;
 	unsigned long flags;
 	struct kvm_vcpu *vcpu;
+<<<<<<< HEAD
 	struct aia_hgei_control *hgctrl;
 
 	if (!kvm_riscv_aia_available())
 		return;
 	hgctrl = get_cpu_ptr(&aia_hgei);
+=======
+	struct aia_hgei_control *hgctrl = this_cpu_ptr(&aia_hgei);
+
+	if (!kvm_riscv_aia_available())
+		return;
+>>>>>>> upstream/cove-integration
 
 	/* Disable per-CPU SGEI interrupt */
 	csr_clear(CSR_HIE, BIT(IRQ_S_GEXT));
 	disable_percpu_irq(hgei_parent_irq);
 
+<<<<<<< HEAD
 	aia_set_hvictl(false);
+=======
+	/* The host is not allowed modify hvictl for TVMs */
+	if (!unlikely(kvm_riscv_cove_enabled()))
+		aia_set_hvictl(false);
+>>>>>>> upstream/cove-integration
 
 	raw_spin_lock_irqsave(&hgctrl->lock, flags);
 
@@ -593,16 +818,27 @@ void kvm_riscv_aia_disable(void)
 	}
 
 	raw_spin_unlock_irqrestore(&hgctrl->lock, flags);
+<<<<<<< HEAD
 
 	put_cpu_ptr(&aia_hgei);
+=======
+>>>>>>> upstream/cove-integration
 }
 
 int kvm_riscv_aia_init(void)
 {
 	int rc;
+<<<<<<< HEAD
 
 	if (!riscv_isa_extension_available(NULL, SxAIA))
 		return -ENODEV;
+=======
+	const struct imsic_global_config *gc;
+
+	if (!riscv_isa_extension_available(NULL, SxAIA))
+		return -ENODEV;
+	gc = imsic_get_global_config();
+>>>>>>> upstream/cove-integration
 
 	/* Figure-out number of bits in HGEIE */
 	csr_write(CSR_HGEIE, -1UL);
@@ -611,6 +847,7 @@ int kvm_riscv_aia_init(void)
 	if (kvm_riscv_aia_nr_hgei)
 		kvm_riscv_aia_nr_hgei--;
 
+<<<<<<< HEAD
 	/*
 	 * Number of usable HGEI lines should be minimum of per-HART
 	 * IMSIC guest files and number of bits in HGEIE
@@ -625,6 +862,12 @@ int kvm_riscv_aia_init(void)
 	 * TODO: To be updated later by AIA IMSIC HW guest file support
 	 */
 	kvm_riscv_aia_max_ids = IMSIC_MAX_ID;
+=======
+	/* Find number of guest MSI IDs */
+	kvm_riscv_aia_max_ids = IMSIC_MAX_ID;
+	if (kvm_riscv_aia_nr_hgei)
+		kvm_riscv_aia_max_ids = gc->nr_guest_ids + 1;
+>>>>>>> upstream/cove-integration
 
 	/* Initialize guest external interrupt line management */
 	rc = aia_hgei_init();

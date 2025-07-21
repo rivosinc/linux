@@ -4437,11 +4437,13 @@ static int virtnet_probe(struct virtio_device *vdev)
 			dev->features |= dev->hw_features & NETIF_F_ALL_TSO;
 		/* (!csum && gso) case will be fixed by register_netdev() */
 	}
-	if (virtio_has_feature(vdev, VIRTIO_NET_F_GUEST_CSUM))
+	if (virtio_has_feature(vdev, VIRTIO_NET_F_GUEST_CSUM)) {
 		dev->features |= NETIF_F_RXCSUM;
-	if (virtio_has_feature(vdev, VIRTIO_NET_F_GUEST_TSO4) ||
-	    virtio_has_feature(vdev, VIRTIO_NET_F_GUEST_TSO6))
-		dev->features |= NETIF_F_GRO_HW;
+		/* This dependency is enforced by netdev_fix_features */
+		if (virtio_has_feature(vdev, VIRTIO_NET_F_GUEST_TSO4) ||
+		    virtio_has_feature(vdev, VIRTIO_NET_F_GUEST_TSO6))
+			dev->features |= NETIF_F_GRO_HW;
+	}
 	if (virtio_has_feature(vdev, VIRTIO_NET_F_CTRL_GUEST_OFFLOADS))
 		dev->hw_features |= NETIF_F_GRO_HW;
 

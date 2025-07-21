@@ -38,6 +38,7 @@
  */
 #define RISCV_ISA_EXT_BASE		26
 
+<<<<<<< HEAD
 #define RISCV_ISA_EXT_SSCOFPMF		26
 #define RISCV_ISA_EXT_SSTC		27
 #define RISCV_ISA_EXT_SVINVAL		28
@@ -59,6 +60,81 @@
 #define RISCV_ISA_EXT_ZICOND		44
 
 #define RISCV_ISA_EXT_MAX		64
+=======
+#define RISCV_ISA_EXT_SSAIA		26
+#define RISCV_ISA_EXT_SSCOFPMF		27
+#define RISCV_ISA_EXT_SSTC		28
+#define RISCV_ISA_EXT_SMAIA		29
+#define RISCV_ISA_EXT_SVINVAL		30
+#define RISCV_ISA_EXT_SVPBMT		31
+#define RISCV_ISA_EXT_ZBB		32
+#define RISCV_ISA_EXT_ZICBOM		33
+#define RISCV_ISA_EXT_ZIHINTPAUSE	34
+
+#define RISCV_ISA_EXT_MAX		64
+#define RISCV_ISA_EXT_NAME_LEN_MAX	32
+
+#ifdef CONFIG_RISCV_M_MODE
+#define RISCV_ISA_EXT_SxAIA		RISCV_ISA_EXT_SMAIA
+#else
+#define RISCV_ISA_EXT_SxAIA		RISCV_ISA_EXT_SSAIA
+#endif
+
+#ifndef __ASSEMBLY__
+
+#include <linux/jump_label.h>
+
+struct riscv_isa_ext_data {
+	/* Name of the extension displayed to userspace via /proc/cpuinfo */
+	char uprop[RISCV_ISA_EXT_NAME_LEN_MAX];
+	/* The logical ISA extension ID */
+	unsigned int isa_ext_id;
+};
+
+static __always_inline bool
+riscv_has_extension_likely(const unsigned long ext)
+{
+	compiletime_assert(ext < RISCV_ISA_EXT_MAX,
+			   "ext must be < RISCV_ISA_EXT_MAX");
+
+	asm_volatile_goto(
+	ALTERNATIVE("j	%l[l_no]", "nop", 0, %[ext], 1)
+	:
+	: [ext] "i" (ext)
+	:
+	: l_no);
+
+	return true;
+l_no:
+	return false;
+}
+
+static __always_inline bool
+riscv_has_extension_unlikely(const unsigned long ext)
+{
+	compiletime_assert(ext < RISCV_ISA_EXT_MAX,
+			   "ext must be < RISCV_ISA_EXT_MAX");
+
+	asm_volatile_goto(
+	ALTERNATIVE("nop", "j	%l[l_yes]", 0, %[ext], 1)
+	:
+	: [ext] "i" (ext)
+	:
+	: l_yes);
+
+	return false;
+l_yes:
+	return true;
+}
+
+unsigned long riscv_isa_extension_base(const unsigned long *isa_bitmap);
+
+#define riscv_isa_extension_mask(ext) BIT_MASK(RISCV_ISA_EXT_##ext)
+
+bool __riscv_isa_extension_available(const unsigned long *isa_bitmap, int bit);
+#define riscv_isa_extension_available(isa_bitmap, ext)	\
+	__riscv_isa_extension_available(isa_bitmap, RISCV_ISA_EXT_##ext)
+>>>>>>> upstream/cove-integration
 
 #ifdef CONFIG_RISCV_M_MODE
 #define RISCV_ISA_EXT_SxAIA		RISCV_ISA_EXT_SMAIA
